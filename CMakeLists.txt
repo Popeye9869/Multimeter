@@ -43,13 +43,36 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 )
 
 # Add sources to executable
+
+
+# Collect user sources
+file(GLOB_RECURSE USER_SOURCES CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/APP/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/BSP/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/DRV/*.c
+)
+
+# Collect user headers (used for IDE indexing and include discovery)
+file(GLOB_RECURSE USER_HEADERS CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/APP/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/BSP/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/DRV/*.h
+)
+
+
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    ${USER_SOURCES}
+    ${USER_HEADERS}
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    ${CMAKE_CURRENT_SOURCE_DIR}/APP
+    ${CMAKE_CURRENT_SOURCE_DIR}/BSP
+    ${CMAKE_CURRENT_SOURCE_DIR}/DRV/SSD1306_OLED
+    ${CMAKE_CURRENT_SOURCE_DIR}/DRV/RTT
 )
 
 # Add project symbols (macros)
