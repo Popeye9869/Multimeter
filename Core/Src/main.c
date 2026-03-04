@@ -21,13 +21,15 @@
 #include "adc.h"
 #include "comp.h"
 #include "dac.h"
+#include "i2c.h"
 #include "opamp.h"
 #include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "oled.h"
+#include "power_buffer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,14 +100,21 @@ int main(void)
   MX_OPAMP3_Init();
   MX_TIM1_Init();
   MX_DAC1_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-
+  OLED_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // OLED_NewFrame();
+    // OLED_PrintString(0, 0, "波特律动hello", &font16x16, OLED_COLOR_NORMAL);
+    // OLED_ShowFrame();
+    // HAL_Delay(100);
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

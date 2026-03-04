@@ -67,6 +67,8 @@ void Error_Handler(void);
 #define FOLLOWER_OUT_GPIO_Port GPIOA
 #define FOLLOWER_IN_Pin GPIO_PIN_3
 #define FOLLOWER_IN_GPIO_Port GPIOA
+#define DAC1_OUT1_Pin GPIO_PIN_4
+#define DAC1_OUT1_GPIO_Port GPIOA
 #define OP_VINP_Pin GPIO_PIN_0
 #define OP_VINP_GPIO_Port GPIOB
 #define OP_VOUT_Pin GPIO_PIN_1
@@ -77,6 +79,14 @@ void Error_Handler(void);
 #define PGA_IN_GPIO_Port GPIOB
 #define KEY_Pin GPIO_PIN_15
 #define KEY_GPIO_Port GPIOD
+#define OLED_SCL_Pin GPIO_PIN_15
+#define OLED_SCL_GPIO_Port GPIOA
+#define OLED_SDA_Pin GPIO_PIN_7
+#define OLED_SDA_GPIO_Port GPIOB
+#define PULL1_Pin GPIO_PIN_0
+#define PULL1_GPIO_Port GPIOE
+#define PULL2_Pin GPIO_PIN_1
+#define PULL2_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
 
