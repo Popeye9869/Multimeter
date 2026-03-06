@@ -81,6 +81,7 @@ void Error_Handler(void);
 #define PGA_IN_GPIO_Port GPIOB
 #define KEY_Pin GPIO_PIN_15
 #define KEY_GPIO_Port GPIOD
+#define KEY_EXTI_IRQn EXTI15_10_IRQn
 #define OLED_SCL_Pin GPIO_PIN_15
 #define OLED_SCL_GPIO_Port GPIOA
 #define OLED_SDA_Pin GPIO_PIN_7

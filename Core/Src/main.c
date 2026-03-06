@@ -29,13 +29,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "oled.h"
-#include "power_buffer.h"
-#include "pga.h"
-#include <stdint.h>
-#include <stdio.h>
-#include "my_ADC.h"
-#include "voltmeter.h"
+#include "app.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -109,19 +103,15 @@ int main(void)
   MX_I2C1_Init();
   MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
-  OLED_Init();
-  VoltMeter_Init();
-  VoltMeter_AC_Start();
+  APP_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    OLED_NewFrame();
-    VoltMeter_AC_Display();
-    OLED_ShowFrame();
-    HAL_Delay(100);
+    APP_Proc();
+    HAL_Delay(20);
 
 
     /* USER CODE END WHILE */

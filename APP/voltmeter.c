@@ -23,7 +23,7 @@ void VoltMeter_DC20V_Start()
 
 void VoltMeter_DC2000mV_Start()
 {
-    PowerBuffer_SetLevel(POWER_BUFFER_LEVEL_LOW);// 模拟地设置为低电平
+    PowerBuffer_SetLevel(POWER_BUFFER_LEVEL_MEDIUM);// 模拟地设置为中等电平
     PGA_ChangeGain(16); // 设置增益为16倍
     ADC_SetDCMode(); // 配置ADC为直流测量模式
     HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED);// 校准ADC
@@ -53,7 +53,7 @@ void VoltMeter_DC2000mV_Display()
 {
     double voltage = DC_2000mV_Calc(adc_value[0]); // 假设使用3.3V参考电压
     char DispStr[20];
-    sprintf(DispStr, "DC 200mV");
+    sprintf(DispStr, "DC 2000mV");
     OLED_PrintString(0, 0, DispStr, &font16x16, OLED_COLOR_NORMAL);
     sprintf(DispStr, "Voltage: %.3lf mV", voltage*1000);
     OLED_PrintString(0, 20, DispStr, &font16x16, OLED_COLOR_NORMAL);

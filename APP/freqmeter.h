@@ -2,6 +2,7 @@
 #define __FREQMETER_H__
 
 #include "main.h"
+#include "comp.h"
 
 void FreqMeter_Init(void);
 

@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+#include "comp.h"
+#include "stm32g4xx_hal_comp.h"
 #include "tim.h"
 #include "oled.h"
 
@@ -24,6 +26,9 @@ static const FreqMeter_Range g_ranges[] = {
 	{1U, "20kHz", 20000.0},
 	{0U, "200kHz", 200000.0},
 };
+
+
+
 
 static const char *g_freq_range_name = "20Hz";
 static uint32_t g_tim1_clk_hz = 0U;
@@ -154,6 +159,11 @@ static void FreqMeter_DisplayCommon(void)
 
 void FreqMeter_Init(void)
 {
+    HAL_COMP_Start(&hcomp1);
+
+    HAL_TIM_IC_Start(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_IC_Start(&htim1, TIM_CHANNEL_2);
+
 	g_tim1_clk_hz = FreqMeter_GetTIM1ClockHz();
 	g_current_range_idx = 0U;
 	g_auto_mode = 0U;
