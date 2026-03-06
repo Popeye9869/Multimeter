@@ -21,6 +21,7 @@
 #include "adc.h"
 #include "comp.h"
 #include "dac.h"
+#include "dma.h"
 #include "i2c.h"
 #include "opamp.h"
 #include "tim.h"
@@ -30,6 +31,11 @@
 /* USER CODE BEGIN Includes */
 #include "oled.h"
 #include "power_buffer.h"
+#include "pga.h"
+#include <stdint.h>
+#include <stdio.h>
+#include "my_ADC.h"
+#include "voltmeter.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -93,7 +99,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_ADC2_Init();
+  MX_DMA_Init();
   MX_OPAMP1_Init();
   MX_OPAMP2_Init();
   MX_COMP1_Init();
@@ -101,18 +107,21 @@ int main(void)
   MX_TIM1_Init();
   MX_DAC1_Init();
   MX_I2C1_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
+  VoltMeter_Init();
+  VoltMeter_AC_Start();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // OLED_NewFrame();
-    // OLED_PrintString(0, 0, "波特律动hello", &font16x16, OLED_COLOR_NORMAL);
-    // OLED_ShowFrame();
-    // HAL_Delay(100);
+    OLED_NewFrame();
+    VoltMeter_AC_Display();
+    OLED_ShowFrame();
+    HAL_Delay(100);
 
 
     /* USER CODE END WHILE */

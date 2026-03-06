@@ -69,6 +69,8 @@ void Error_Handler(void);
 #define FOLLOWER_IN_GPIO_Port GPIOA
 #define DAC1_OUT1_Pin GPIO_PIN_4
 #define DAC1_OUT1_GPIO_Port GPIOA
+#define PGA_BIAS_Pin GPIO_PIN_5
+#define PGA_BIAS_GPIO_Port GPIOA
 #define OP_VINP_Pin GPIO_PIN_0
 #define OP_VINP_GPIO_Port GPIOB
 #define OP_VOUT_Pin GPIO_PIN_1
