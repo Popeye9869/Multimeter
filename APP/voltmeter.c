@@ -5,6 +5,53 @@
 #include "oled.h"
 #include "PGA.h"
 
+#define VOLT_OL_HOLD_MS 1000U
+#define VOLT_OL_DOT_MS  220U
+
+static uint8_t VoltMeter_IsOverRange(uint16_t adc_raw)
+{
+    static uint8_t extreme_active = 0U;
+    static uint32_t extreme_start_tick = 0U;
+    uint32_t now = HAL_GetTick();
+
+    if ((adc_raw == 0U) || (adc_raw == 65535U)) {
+        if (extreme_active == 0U) {
+            extreme_active = 1U;
+            extreme_start_tick = now;
+            return 0U;
+        }
+
+        if ((now - extreme_start_tick) >= VOLT_OL_HOLD_MS) {
+            return 1U;
+        }
+        return 0U;
+    }
+
+    extreme_active = 0U;
+    extreme_start_tick = now;
+    return 0U;
+}
+
+static void VoltMeter_ShowOverRange(const char *title)
+{
+    char disp_str[20];
+    uint8_t dot_count = (uint8_t)((HAL_GetTick() / VOLT_OL_DOT_MS) % 4U);
+
+    sprintf(disp_str, "%s", title);
+    OLED_PrintString(0, 0, disp_str, &font16x16, OLED_COLOR_NORMAL);
+
+    if (dot_count == 0U) {
+        sprintf(disp_str, " 0L");
+    } else if (dot_count == 1U) {
+        sprintf(disp_str, " 0L.");
+    } else if (dot_count == 2U) {
+        sprintf(disp_str, " 0L..");
+    } else {
+        sprintf(disp_str, " 0L...");
+    }
+    OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
+}
+
 
 void VoltMeter_Init()
 {
@@ -41,32 +88,46 @@ void VoltMeter_AC_Start()
 
 void VoltMeter_DC20V_Display()
 {
+    if (VoltMeter_IsOverRange(adc_value[0]) != 0U) {
+        VoltMeter_ShowOverRange("DC 20V");
+        return;
+    }
+
     double voltage = DC_20V_Calc(adc_value[0]);
     char DispStr[20];
     sprintf(DispStr, "DC 20V");
     OLED_PrintString(0, 0, DispStr, &font16x16, OLED_COLOR_NORMAL);
-    sprintf(DispStr, "Voltage: %.3lf V", voltage);
+    sprintf(DispStr, " %.3f V", voltage);
     OLED_PrintString(0, 20, DispStr, &font16x16, OLED_COLOR_NORMAL);
 }
 
 void VoltMeter_DC2000mV_Display()
 {
+    if (VoltMeter_IsOverRange(adc_value[0]) != 0U) {
+        VoltMeter_ShowOverRange("DC 2000mV");
+        return;
+    }
+
     double voltage = DC_2000mV_Calc(adc_value[0]); // 假设使用3.3V参考电压
     char DispStr[20];
     sprintf(DispStr, "DC 2000mV");
     OLED_PrintString(0, 0, DispStr, &font16x16, OLED_COLOR_NORMAL);
-    sprintf(DispStr, "Voltage: %.3lf mV", voltage*1000);
+    sprintf(DispStr, " %.3f mV", voltage*1000);
     OLED_PrintString(0, 20, DispStr, &font16x16, OLED_COLOR_NORMAL);
 }
 
 void VoltMeter_AC_Display()
 {
+    if (VoltMeter_IsOverRange(adc_value[0]) != 0U) {
+        VoltMeter_ShowOverRange("AC");
+        return;
+    }
 
     double voltage = ((((rms_voltage / 4096.0) * 1.65) * 1000 / 43));
     char DispStr[20];
     sprintf(DispStr, "AC");
     OLED_PrintString(0, 0, DispStr, &font16x16, OLED_COLOR_NORMAL);
-    sprintf(DispStr, "Voltage: %.2lf V", voltage);
+    sprintf(DispStr, " %.3f V", voltage);
     OLED_PrintString(0, 20, DispStr, &font16x16, OLED_COLOR_NORMAL);
 }
 

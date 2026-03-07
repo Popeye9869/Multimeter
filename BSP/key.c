@@ -1,7 +1,7 @@
 #include "key.h"
 
 #define KEY_DEBOUNCE_MS       30U
-#define KEY_LONG_PRESS_MS     2000U
+#define KEY_LONG_PRESS_MS     1500U
 #define KEY_DOUBLE_CLICK_MS   300U
 
 #define KEY_FLAG_SHORT        (1U << 0)

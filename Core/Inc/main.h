@@ -59,8 +59,6 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define PWM_IN_Pin GPIO_PIN_0
 #define PWM_IN_GPIO_Port GPIOC
-#define COMP_OUT_Pin GPIO_PIN_0
-#define COMP_OUT_GPIO_Port GPIOA
 #define COMP_IN_Pin GPIO_PIN_1
 #define COMP_IN_GPIO_Port GPIOA
 #define FOLLOWER_OUT_Pin GPIO_PIN_2
@@ -71,17 +69,23 @@ void Error_Handler(void);
 #define DAC1_OUT1_GPIO_Port GPIOA
 #define PGA_BIAS_Pin GPIO_PIN_5
 #define PGA_BIAS_GPIO_Port GPIOA
+#define COMP_OUT_Pin GPIO_PIN_6
+#define COMP_OUT_GPIO_Port GPIOA
+#define PGA_IN_Pin GPIO_PIN_7
+#define PGA_IN_GPIO_Port GPIOA
 #define OP_VINP_Pin GPIO_PIN_0
 #define OP_VINP_GPIO_Port GPIOB
 #define OP_VOUT_Pin GPIO_PIN_1
 #define OP_VOUT_GPIO_Port GPIOB
 #define OP_VINM_Pin GPIO_PIN_2
 #define OP_VINM_GPIO_Port GPIOB
-#define PGA_IN_Pin GPIO_PIN_14
-#define PGA_IN_GPIO_Port GPIOB
+#define BEEP_Pin GPIO_PIN_13
+#define BEEP_GPIO_Port GPIOD
 #define KEY_Pin GPIO_PIN_15
 #define KEY_GPIO_Port GPIOD
 #define KEY_EXTI_IRQn EXTI15_10_IRQn
+#define R_SW_Pin GPIO_PIN_6
+#define R_SW_GPIO_Port GPIOC
 #define OLED_SCL_Pin GPIO_PIN_15
 #define OLED_SCL_GPIO_Port GPIOA
 #define OLED_SDA_Pin GPIO_PIN_7

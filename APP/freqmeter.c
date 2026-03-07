@@ -4,8 +4,10 @@
 
 #include "comp.h"
 #include "stm32g4xx_hal_comp.h"
+#include "stm32g4xx_hal_tim.h"
 #include "tim.h"
 #include "oled.h"
+#include "power_buffer.h"
 
 typedef struct {
 	double frequency_hz;
@@ -159,7 +161,12 @@ static void FreqMeter_DisplayCommon(void)
 
 void FreqMeter_Init(void)
 {
+	PowerBuffer_SetLevel(POWER_BUFFER_LEVEL_LOW);
+	
+
     HAL_COMP_Start(&hcomp1);
+
+	HAL_TIM_Base_Start(&htim1);
 
     HAL_TIM_IC_Start(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_IC_Start(&htim1, TIM_CHANNEL_2);

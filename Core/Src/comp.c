@@ -66,20 +66,20 @@ void HAL_COMP_MspInit(COMP_HandleTypeDef* compHandle)
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
     /**COMP1 GPIO Configuration
-    PA0     ------> COMP1_OUT
     PA1     ------> COMP1_INP
+    PA6     ------> COMP1_OUT
     */
-    GPIO_InitStruct.Pin = COMP_OUT_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF8_COMP1;
-    HAL_GPIO_Init(COMP_OUT_GPIO_Port, &GPIO_InitStruct);
-
     GPIO_InitStruct.Pin = COMP_IN_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(COMP_IN_GPIO_Port, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = COMP_OUT_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF8_COMP1;
+    HAL_GPIO_Init(COMP_OUT_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN COMP1_MspInit 1 */
 
@@ -97,10 +97,10 @@ void HAL_COMP_MspDeInit(COMP_HandleTypeDef* compHandle)
   /* USER CODE END COMP1_MspDeInit 0 */
 
     /**COMP1 GPIO Configuration
-    PA0     ------> COMP1_OUT
     PA1     ------> COMP1_INP
+    PA6     ------> COMP1_OUT
     */
-    HAL_GPIO_DeInit(GPIOA, COMP_OUT_Pin|COMP_IN_Pin);
+    HAL_GPIO_DeInit(GPIOA, COMP_IN_Pin|COMP_OUT_Pin);
 
   /* USER CODE BEGIN COMP1_MspDeInit 1 */
 
