@@ -3,11 +3,14 @@
 #include <stdio.h>
 
 #include "comp.h"
+#include "dac.h"
 #include "stm32g4xx_hal_comp.h"
+#include "stm32g4xx_hal_dac.h"
 #include "stm32g4xx_hal_tim.h"
 #include "tim.h"
 #include "oled.h"
 #include "power_buffer.h"
+#include "my_ADC.h"
 
 typedef struct {
 	double frequency_hz;
@@ -36,6 +39,10 @@ static const char *g_freq_range_name = "20Hz";
 static uint32_t g_tim1_clk_hz = 0U;
 static uint8_t g_current_range_idx = 0U;
 static uint8_t g_auto_mode = 0U;
+static volatile uint32_t g_period_cnt_latched = 0U;
+static volatile uint32_t g_high_cnt_latched = 0U;
+static volatile uint32_t g_prescaler_div_latched = 1U;
+static volatile uint8_t g_capture_valid = 0U;
 
 static uint32_t FreqMeter_GetTIM1ClockHz(void)
 {
@@ -51,15 +58,16 @@ static uint32_t FreqMeter_GetTIM1ClockHz(void)
 static void FreqMeter_StartWithPrescaler(uint16_t psc, const char *range_name)
 {
 	g_freq_range_name = range_name;
+	g_capture_valid = 0U;
 
-	HAL_TIM_IC_Stop(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_IC_Stop(&htim1, TIM_CHANNEL_2);
 
 	__HAL_TIM_SET_PRESCALER(&htim1, psc);
 	__HAL_TIM_SET_COUNTER(&htim1, 0U);
 	htim1.Instance->EGR = TIM_EGR_UG;
 
-	HAL_TIM_IC_Start(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_IC_Start(&htim1, TIM_CHANNEL_2);
 }
 
@@ -111,13 +119,29 @@ static uint8_t FreqMeter_AutoChooseRange(double freq_hz)
 static FreqMeter_Result FreqMeter_Read(void)
 {
 	FreqMeter_Result result = {0.0, 0.0, 0U};
+	uint32_t period_cnt;
+	uint32_t high_cnt;
+	uint32_t prescaler_div;
+	uint8_t capture_valid;
+	uint32_t primask;
 
-	uint32_t period_cnt = HAL_TIM_ReadCapturedValue(&htim1, TIM_CHANNEL_1);
-	uint32_t high_cnt = HAL_TIM_ReadCapturedValue(&htim1, TIM_CHANNEL_2);
-	uint32_t prescaler_div = htim1.Instance->PSC + 1U;
+	primask = __get_PRIMASK();
+	__disable_irq();
+	period_cnt = g_period_cnt_latched;
+	high_cnt = g_high_cnt_latched;
+	prescaler_div = g_prescaler_div_latched;
+	capture_valid = g_capture_valid;
+	if (primask == 0U) {
+		__enable_irq();
+	}
 
-	if ((period_cnt == 0U) || (high_cnt > period_cnt) || (g_tim1_clk_hz == 0U)) {
+	if ((capture_valid == 0U) || (period_cnt == 0U) || (g_tim1_clk_hz == 0U)) {
 		return result;
+	}
+
+	/* Cap high_cnt so duty never exceeds 100 %. */
+	if (high_cnt > period_cnt) {
+		high_cnt = period_cnt;
 	}
 
 	result.frequency_hz = (double)g_tim1_clk_hz / ((double)prescaler_div * (double)period_cnt);
@@ -161,19 +185,39 @@ static void FreqMeter_DisplayCommon(void)
 
 void FreqMeter_Init(void)
 {
+
+	ADC_SetDCMode();
+
 	PowerBuffer_SetLevel(POWER_BUFFER_LEVEL_LOW);
+
+	HAL_DAC_SetValue(&hdac3, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2047);
+	HAL_DAC_Start(&hdac3, DAC_CHANNEL_1);
 	
 
     HAL_COMP_Start(&hcomp1);
 
 	HAL_TIM_Base_Start(&htim1);
 
-    HAL_TIM_IC_Start(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_IC_Start(&htim1, TIM_CHANNEL_2);
 
 	g_tim1_clk_hz = FreqMeter_GetTIM1ClockHz();
 	g_current_range_idx = 0U;
 	g_auto_mode = 0U;
+	g_capture_valid = 0U;
+}
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	if ((htim->Instance != TIM1) || (htim->Channel != HAL_TIM_ACTIVE_CHANNEL_1)) {
+		return;
+	}
+
+	/* Always latch — let the reader handle validation. */
+	g_period_cnt_latched    = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+	g_high_cnt_latched      = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+	g_prescaler_div_latched = htim->Instance->PSC + 1U;
+	g_capture_valid         = 1U;
 }
 
 void FreqMeter_20Hz_Start(void)

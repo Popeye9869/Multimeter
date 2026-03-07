@@ -102,6 +102,7 @@ int main(void)
   MX_DAC1_Init();
   MX_I2C1_Init();
   MX_ADC2_Init();
+  MX_DAC3_Init();
   /* USER CODE BEGIN 2 */
   APP_Init();
   /* USER CODE END 2 */

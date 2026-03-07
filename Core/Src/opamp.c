@@ -69,7 +69,7 @@ void MX_OPAMP2_Init(void)
   hopamp2.Instance = OPAMP2;
   hopamp2.Init.PowerMode = OPAMP_POWERMODE_HIGHSPEED;
   hopamp2.Init.Mode = OPAMP_PGA_MODE;
-  hopamp2.Init.NonInvertingInput = OPAMP_NONINVERTINGINPUT_IO0;
+  hopamp2.Init.NonInvertingInput = OPAMP_NONINVERTINGINPUT_IO1;
   hopamp2.Init.InternalOutput = ENABLE;
   hopamp2.Init.TimerControlledMuxmode = OPAMP_TIMERCONTROLLEDMUXMODE_DISABLE;
   hopamp2.Init.PgaConnect = OPAMP_PGA_CONNECT_INVERTINGINPUT_IO0_BIAS;
@@ -144,14 +144,20 @@ void HAL_OPAMP_MspInit(OPAMP_HandleTypeDef* opampHandle)
   /* USER CODE END OPAMP2_MspInit 0 */
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
     /**OPAMP2 GPIO Configuration
     PA5     ------> OPAMP2_VINM0
-    PA7     ------> OPAMP2_VINP
+    PB14     ------> OPAMP2_VINP
     */
-    GPIO_InitStruct.Pin = PGA_BIAS_Pin|PGA_IN_Pin;
+    GPIO_InitStruct.Pin = PGA_BIAS_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    HAL_GPIO_Init(PGA_BIAS_GPIO_Port, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = PGA_IN_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(PGA_IN_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN OPAMP2_MspInit 1 */
 
@@ -207,9 +213,11 @@ void HAL_OPAMP_MspDeInit(OPAMP_HandleTypeDef* opampHandle)
 
     /**OPAMP2 GPIO Configuration
     PA5     ------> OPAMP2_VINM0
-    PA7     ------> OPAMP2_VINP
+    PB14     ------> OPAMP2_VINP
     */
-    HAL_GPIO_DeInit(GPIOA, PGA_BIAS_Pin|PGA_IN_Pin);
+    HAL_GPIO_DeInit(PGA_BIAS_GPIO_Port, PGA_BIAS_Pin);
+
+    HAL_GPIO_DeInit(PGA_IN_GPIO_Port, PGA_IN_Pin);
 
   /* USER CODE BEGIN OPAMP2_MspDeInit 1 */
 
