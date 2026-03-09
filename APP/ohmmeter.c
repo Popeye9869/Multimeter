@@ -26,15 +26,17 @@ typedef struct {
 
 static const OhmMeter_Range g_ohm_ranges[] = {
     /* 所有欧姆档位硬件参数和计算公式集中在这里，后续调校只需修改本表。 */
-    {CURRENT_RANGE_500uA, "200R", 200.0, 64U, 2475.0, 60.0},
-    {CURRENT_RANGE_500uA, "2k", 2000.0, 64U, 2475.0, 60.0},
-    {CURRENT_RANGE_150uA, "20k", 20000.0, 16U, 33000.0, 60.0},
+    {CURRENT_RANGE_500uA, "200R", 200.0, 64U, 2490.94202899, 47.2944847},
+    {CURRENT_RANGE_500uA, "2k", 2000.0, 64U, 2490.94202899, 47.2944847},
+    {CURRENT_RANGE_150uA, "20k", 20000.0, 16U, 33570.7020, 78.2},
     {CURRENT_RANGE_15uA, "200k", 200000.0, 16U, 330000.0, 60.0},
 };
 
 static uint8_t g_ohm_range_idx = 0U;
 static uint8_t g_ohm_auto_mode = 0U;
 static const char *g_manual_range_name = "200R";
+
+#define OHM_DIODE_PGA_GAIN 16U
 
 
 static double OhmMeter_CalcResistance(uint32_t adc_val, uint8_t range_idx)
@@ -74,6 +76,29 @@ static OhmMeter_Result OhmMeter_Read(void)
     result.valid = 1U;
 
     return result;
+}
+
+static double OhmMeter_CalcDiodeVoltage(uint32_t adc_val)
+{
+    double voltage = DC_2000mV_Calc(adc_val);
+
+    if (voltage < 0.0) {
+        return 0.0;
+    }
+
+    return voltage;
+}
+
+static uint8_t OhmMeter_ReadDiodeVoltage(double *voltage_v)
+{
+    uint16_t raw = adc_after_filter;
+
+    if ((raw == 0U) || (raw == 65535U)) {
+        return 0U;
+    }
+
+    *voltage_v = OhmMeter_CalcDiodeVoltage(raw);
+    return 1U;
 }
 
 static uint8_t OhmMeter_SuggestRangeIndex(double resistance_ohm)
@@ -182,6 +207,14 @@ void OhmMeter_200k_Ohm_Start(void)
     OhmMeter_ApplyRangeByIndex(3U);
 }   
 
+void OhmMeter_Diode_Start(void)
+{
+    g_ohm_auto_mode = 0U;
+    g_manual_range_name = "DIODE";
+    SetCurrent(CURRENT_RANGE_500uA);
+    PGA_ChangeGain(OHM_DIODE_PGA_GAIN);
+}
+
 void OhmMeter_Auto_Start(void)
 {
     g_ohm_auto_mode = 1U;
@@ -206,6 +239,23 @@ void OhmMeter_20k_Ohm_Display(void)
 void OhmMeter_200k_Ohm_Display(void)
 {
     OhmMeter_DisplayCommon();
+}
+
+void OhmMeter_Diode_Display(void)
+{
+    double voltage_v;
+    char disp_str[24];
+
+    OLED_PrintString(0, 0, "DIODE 500uA", &font16x16, OLED_COLOR_NORMAL);
+
+    if (OhmMeter_ReadDiodeVoltage(&voltage_v) == 0U) {
+        sprintf(disp_str, " 0L");
+        OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
+        return;
+    }
+
+    sprintf(disp_str, " %.1f mV", voltage_v * 1000.0);
+    OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
 }
 
 void OhmMeter_Auto_Display(void)

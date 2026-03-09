@@ -23,9 +23,13 @@ typedef struct {
 #define DC_AUTO_TO_20V_THRESHOLD_V      1.95
 #define DC_AUTO_TO_2000MV_THRESHOLD_V   1.70
 
+/* AC auto range hysteresis thresholds (Vrms). */
+#define AC_AUTO_TO_20V_THRESHOLD_V      1.95
+#define AC_AUTO_TO_2000MV_THRESHOLD_V   1.70
+
 AppMode g_mode = APP_MODE_DCV;
-static uint8_t g_range_idx[APP_MODE_COUNT] = {0U, 0U, 2U, 0U};
-static uint8_t g_auto_enable[APP_MODE_COUNT] = {0U, 0U, 0U, 0U};
+static uint8_t g_range_idx[APP_MODE_COUNT] = {0U, 0U, 2U, 0U, 0U};
+static uint8_t g_auto_enable[APP_MODE_COUNT] = {0U, 0U, 0U, 0U, 0U};
 static AppTransition g_transition = {0U, 0U, 280U, {0}, {0}};
 
 static uint8_t App_GetRangeCount(AppMode mode)
@@ -35,11 +39,15 @@ static uint8_t App_GetRangeCount(AppMode mode)
 	}
 
 	if (mode == APP_MODE_ACV) {
-		return 1U;
+		return 2U;
 	}
 
 	if (mode == APP_MODE_OHM) {
 		return 4U;
+	}
+
+	if (mode == APP_MODE_DIODE) {
+		return 1U;
 	}
 
 	return 5U;
@@ -62,7 +70,16 @@ static void App_GetStatusText(char *buf, size_t len)
 	}
 
 	if (g_mode == APP_MODE_ACV) {
-		snprintf(buf, len, "ACV");
+		if (g_auto_enable[APP_MODE_ACV] != 0U) {
+			snprintf(buf, len, "ACV AUTO");
+			return;
+		}
+
+		if (g_range_idx[APP_MODE_ACV] == 0U) {
+			snprintf(buf, len, "ACV 20V");
+		} else {
+			snprintf(buf, len, "ACV 2000mV");
+		}
 		return;
 	}
 
@@ -81,6 +98,11 @@ static void App_GetStatusText(char *buf, size_t len)
 		} else {
 			snprintf(buf, len, "OHM 200k");
 		}
+		return;
+	}
+
+	if (g_mode == APP_MODE_DIODE) {
+		snprintf(buf, len, "DIODE");
 		return;
 	}
 
@@ -138,7 +160,11 @@ static void App_ApplyCurrentSetting(void)
 	}
 
 	if (g_mode == APP_MODE_ACV) {
-		VoltMeter_AC_Start();
+		if (g_range_idx[APP_MODE_ACV] == 0U) {
+			VoltMeter_AC20V_Start();
+		} else {
+			VoltMeter_AC2000mV_Start();
+		}
 		return;
 	}
 
@@ -157,6 +183,11 @@ static void App_ApplyCurrentSetting(void)
 		} else {
 			OhmMeter_200k_Ohm_Start();
 		}
+		return;
+	}
+
+	if (g_mode == APP_MODE_DIODE) {
+		OhmMeter_Diode_Start();
 		return;
 	}
 
@@ -222,6 +253,40 @@ static void App_UpdateDCAutoRange(void)
 	}
 }
 
+static void App_UpdateACAutoRange(void)
+{
+	double voltage_abs;
+
+	if (g_mode != APP_MODE_ACV) {
+		return;
+	}
+
+	if (g_auto_enable[APP_MODE_ACV] == 0U) {
+		return;
+	}
+
+	if (g_range_idx[APP_MODE_ACV] == 0U) {
+		voltage_abs = VoltMeter_AC20V_CalcValue();
+	} else {
+		voltage_abs = VoltMeter_AC2000mV_CalcValue() / 1000.0;
+	}
+
+	if (voltage_abs < 0.0) {
+		voltage_abs = -voltage_abs;
+	}
+
+	if ((g_range_idx[APP_MODE_ACV] == 1U) && (voltage_abs > AC_AUTO_TO_20V_THRESHOLD_V)) {
+		g_range_idx[APP_MODE_ACV] = 0U;
+		App_ApplyCurrentSetting();
+		return;
+	}
+
+	if ((g_range_idx[APP_MODE_ACV] == 0U) && (voltage_abs < AC_AUTO_TO_2000MV_THRESHOLD_V)) {
+		g_range_idx[APP_MODE_ACV] = 1U;
+		App_ApplyCurrentSetting();
+	}
+}
+
 static void App_RenderMeasurement(void)
 {
 	if (g_mode == APP_MODE_DCV) {
@@ -236,7 +301,13 @@ static void App_RenderMeasurement(void)
 	}
 
 	if (g_mode == APP_MODE_ACV) {
-		VoltMeter_AC_Display();
+		App_UpdateACAutoRange();
+
+		if (g_range_idx[APP_MODE_ACV] == 0U) {
+			VoltMeter_AC20V_Display();
+		} else {
+			VoltMeter_AC2000mV_Display();
+		}
 		return;
 	}
 
@@ -255,6 +326,11 @@ static void App_RenderMeasurement(void)
 		} else {
 			OhmMeter_200k_Ohm_Display();
 		}
+		return;
+	}
+
+	if (g_mode == APP_MODE_DIODE) {
+		OhmMeter_Diode_Display();
 		return;
 	}
 
@@ -310,10 +386,12 @@ void APP_Init()
 	g_range_idx[APP_MODE_ACV] = 0U;
 	g_range_idx[APP_MODE_FREQ] = 2U;
 	g_range_idx[APP_MODE_OHM] = 0U;
+	g_range_idx[APP_MODE_DIODE] = 0U;
 	g_auto_enable[APP_MODE_DCV] = 0U;
 	g_auto_enable[APP_MODE_ACV] = 0U;
 	g_auto_enable[APP_MODE_FREQ] = 0U;
 	g_auto_enable[APP_MODE_OHM] = 0U;
+	g_auto_enable[APP_MODE_DIODE] = 0U;
 
 	App_InitModuleByMode(g_mode);
 	App_ApplyCurrentSetting();
@@ -344,7 +422,7 @@ void ChangRange()
 
 	App_GetStatusText(from_text, sizeof(from_text));
 
-	if ((g_mode == APP_MODE_DCV) || (g_mode == APP_MODE_FREQ) || (g_mode == APP_MODE_OHM)) {
+	if ((g_mode == APP_MODE_DCV) || (g_mode == APP_MODE_ACV) || (g_mode == APP_MODE_FREQ) || (g_mode == APP_MODE_OHM)) {
 		g_auto_enable[g_mode] = 0U;
 	}
 
@@ -366,7 +444,7 @@ static void App_EnableAuto(void)
 	char from_text[20];
 	char to_text[20];
 
-	if ((g_mode != APP_MODE_DCV) && (g_mode != APP_MODE_FREQ) && (g_mode != APP_MODE_OHM)) {
+	if ((g_mode != APP_MODE_DCV) && (g_mode != APP_MODE_ACV) && (g_mode != APP_MODE_FREQ) && (g_mode != APP_MODE_OHM)) {
 		return;
 	}
 
@@ -375,6 +453,8 @@ static void App_EnableAuto(void)
 	g_auto_enable[g_mode] = 1U;
 	if (g_mode == APP_MODE_DCV) {
 		g_range_idx[APP_MODE_DCV] = 0U;
+	} else if (g_mode == APP_MODE_ACV) {
+		g_range_idx[APP_MODE_ACV] = 0U;
 	} else if (g_mode == APP_MODE_OHM) {
 		g_range_idx[APP_MODE_OHM] = 1U;
 	}
