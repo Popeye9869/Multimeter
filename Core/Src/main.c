@@ -24,7 +24,6 @@
 #include "dma.h"
 #include "i2c.h"
 #include "opamp.h"
-#include "stm32g4xx_hal_gpio.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -105,6 +104,7 @@ int main(void)
   MX_I2C1_Init();
   MX_ADC2_Init();
   MX_DAC3_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   APP_Init();
 

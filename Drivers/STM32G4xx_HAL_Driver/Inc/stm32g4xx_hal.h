@@ -154,7 +154,6 @@ extern "C" {
 /**
   * @}
   */
-  
 #endif /* VREFBUF */
 
 /** @defgroup SYSCFG_flags_definition Flags

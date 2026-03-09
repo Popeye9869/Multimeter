@@ -28,8 +28,8 @@ typedef struct {
 #define AC_AUTO_TO_2000MV_THRESHOLD_V   1.70
 
 AppMode g_mode = APP_MODE_DCV;
-static uint8_t g_range_idx[APP_MODE_COUNT] = {0U, 0U, 2U, 0U, 0U};
-static uint8_t g_auto_enable[APP_MODE_COUNT] = {0U, 0U, 0U, 0U, 0U};
+static uint8_t g_range_idx[APP_MODE_COUNT] = {0U, 0U, 2U, 0U, 0U, 0U};
+static uint8_t g_auto_enable[APP_MODE_COUNT] = {0U, 0U, 0U, 0U, 0U, 0U};
 static AppTransition g_transition = {0U, 0U, 280U, {0}, {0}};
 
 static uint8_t App_GetRangeCount(AppMode mode)
@@ -47,6 +47,10 @@ static uint8_t App_GetRangeCount(AppMode mode)
 	}
 
 	if (mode == APP_MODE_DIODE) {
+		return 1U;
+	}
+
+	if (mode == APP_MODE_CONT) {
 		return 1U;
 	}
 
@@ -106,6 +110,11 @@ static void App_GetStatusText(char *buf, size_t len)
 		return;
 	}
 
+	if (g_mode == APP_MODE_CONT) {
+		snprintf(buf, len, "CONT");
+		return;
+	}
+
 	if (g_auto_enable[APP_MODE_FREQ] != 0U) {
 		snprintf(buf, len, "FREQ AUTO");
 		return;
@@ -150,6 +159,8 @@ static void App_InitModuleByMode(AppMode mode)
 
 static void App_ApplyCurrentSetting(void)
 {
+	HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
+
 	if (g_mode == APP_MODE_DCV) {
 		if (g_range_idx[APP_MODE_DCV] == 0U) {
 			VoltMeter_DC20V_Start();
@@ -188,6 +199,11 @@ static void App_ApplyCurrentSetting(void)
 
 	if (g_mode == APP_MODE_DIODE) {
 		OhmMeter_Diode_Start();
+		return;
+	}
+
+	if (g_mode == APP_MODE_CONT) {
+		OhmMeter_Continuity_Start();
 		return;
 	}
 
@@ -334,6 +350,11 @@ static void App_RenderMeasurement(void)
 		return;
 	}
 
+	if (g_mode == APP_MODE_CONT) {
+		OhmMeter_Continuity_Display();
+		return;
+	}
+
 	if (g_auto_enable[APP_MODE_FREQ] != 0U) {
 		FreqMeter_Auto_Display();
 		return;
@@ -387,11 +408,13 @@ void APP_Init()
 	g_range_idx[APP_MODE_FREQ] = 2U;
 	g_range_idx[APP_MODE_OHM] = 0U;
 	g_range_idx[APP_MODE_DIODE] = 0U;
+	g_range_idx[APP_MODE_CONT] = 0U;
 	g_auto_enable[APP_MODE_DCV] = 0U;
 	g_auto_enable[APP_MODE_ACV] = 0U;
 	g_auto_enable[APP_MODE_FREQ] = 0U;
 	g_auto_enable[APP_MODE_OHM] = 0U;
 	g_auto_enable[APP_MODE_DIODE] = 0U;
+	g_auto_enable[APP_MODE_CONT] = 0U;
 
 	App_InitModuleByMode(g_mode);
 	App_ApplyCurrentSetting();

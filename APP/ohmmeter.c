@@ -37,6 +37,7 @@ static uint8_t g_ohm_auto_mode = 0U;
 static const char *g_manual_range_name = "200R";
 
 #define OHM_DIODE_PGA_GAIN 16U
+#define OHM_CONTINUITY_THRESHOLD_OHM 10.0
 
 
 static double OhmMeter_CalcResistance(uint32_t adc_val, uint8_t range_idx)
@@ -80,7 +81,7 @@ static OhmMeter_Result OhmMeter_Read(void)
 
 static double OhmMeter_CalcDiodeVoltage(uint32_t adc_val)
 {
-    double voltage = DC_2000mV_Calc(adc_val);
+    double voltage = DC_2000mV_Calc(adc_val)+2.436;
 
     if (voltage < 0.0) {
         return 0.0;
@@ -171,7 +172,6 @@ void OhmMeter_Init()
 
     ADC_SetDCMode(); // 配置ADC为直流测量模式
     HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED);// 校准ADC
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH); // 启动ADC并使用DMA传输数据到adc_value数组
 
     g_ohm_auto_mode = 0U;
     g_ohm_range_idx = 0U;
@@ -184,6 +184,7 @@ void OhmMeter_200_Ohm_Start()
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "200R";
     OhmMeter_ApplyRangeByIndex(0U);
+    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH); // 启动ADC并使用DMA传输数据到adc_value数组
 }
 
 void OhmMeter_2k_Ohm_Start(void)
@@ -191,6 +192,7 @@ void OhmMeter_2k_Ohm_Start(void)
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "2k";
     OhmMeter_ApplyRangeByIndex(1U);
+    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
 }
 
 void OhmMeter_20k_Ohm_Start(void)
@@ -198,6 +200,7 @@ void OhmMeter_20k_Ohm_Start(void)
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "20k";
     OhmMeter_ApplyRangeByIndex(2U);
+    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
 }
 
 void OhmMeter_200k_Ohm_Start(void)
@@ -205,7 +208,8 @@ void OhmMeter_200k_Ohm_Start(void)
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "200k";
     OhmMeter_ApplyRangeByIndex(3U);
-}   
+    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
+}
 
 void OhmMeter_Diode_Start(void)
 {
@@ -213,12 +217,22 @@ void OhmMeter_Diode_Start(void)
     g_manual_range_name = "DIODE";
     SetCurrent(CURRENT_RANGE_500uA);
     PGA_ChangeGain(OHM_DIODE_PGA_GAIN);
+    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
+}
+
+void OhmMeter_Continuity_Start(void)
+{
+    g_ohm_auto_mode = 0U;
+    g_manual_range_name = "CONT";
+    OhmMeter_ApplyRangeByIndex(0U);
+    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, 1);
 }
 
 void OhmMeter_Auto_Start(void)
 {
     g_ohm_auto_mode = 1U;
     OhmMeter_ApplyRangeByIndex(1U);
+    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
 }
 
 void OhmMeter_200_Ohm_Display()
@@ -255,6 +269,30 @@ void OhmMeter_Diode_Display(void)
     }
 
     sprintf(disp_str, " %.1f mV", voltage_v * 1000.0);
+    OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
+}
+
+void OhmMeter_Continuity_Display(void)
+{
+    OhmMeter_Result result = OhmMeter_Read();
+    char disp_str[24];
+
+    OLED_PrintString(0, 0, "CONT 10R", &font16x16, OLED_COLOR_NORMAL);
+
+    if (result.valid == 0U) {
+        HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
+        sprintf(disp_str, " 0L");
+        OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
+        return;
+    }
+
+    if (result.resistance_ohm < OHM_CONTINUITY_THRESHOLD_OHM) {
+        HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_SET);
+    } else {
+        HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
+    }
+
+    sprintf(disp_str, " %.2f Ohm", result.resistance_ohm);
     OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
 }
 

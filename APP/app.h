@@ -7,6 +7,7 @@ typedef enum {
 	APP_MODE_FREQ,
 	APP_MODE_OHM,
 	APP_MODE_DIODE,
+	APP_MODE_CONT,
 	APP_MODE_COUNT
 } AppMode;
 
