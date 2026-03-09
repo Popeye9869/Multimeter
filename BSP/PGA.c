@@ -20,6 +20,8 @@ HAL_StatusTypeDef PGA_ChangeGain(uint32_t gain)
     if(gain ==1)
     {
         PGA->Init.Mode = OPAMP_FOLLOWER_MODE; // 如果增益为1，则设置为跟随器模式
+        HAL_OPAMP_Init(PGA);
+        return  PGA_Init();
     }
     else
     {
@@ -43,6 +45,18 @@ HAL_StatusTypeDef PGA_ChangeGain(uint32_t gain)
     else if (gain == 16)
     {
         PGA->Init.PgaGain = OPAMP_PGA_GAIN_16_OR_MINUS_15;
+    }
+    else if(gain == 32)
+    {
+        PGA->Init.PgaGain = OPAMP_PGA_GAIN_32_OR_MINUS_31;
+    }
+    else if (gain == 64)
+    {
+        PGA->Init.PgaGain = OPAMP_PGA_GAIN_64_OR_MINUS_63;
+    }
+    else
+    {
+        return HAL_ERROR; // 如果增益值不合法，返回错误
     }
 
     // 重新初始化OPAMP以应用新的增益设置

@@ -14,6 +14,9 @@ typedef struct {
     Current_Type current;
     const char *name;
     double upper_ohm;
+    uint32_t pga_gain;
+    double adc_scale_ohm;
+    double adc_offset_ohm;
 } OhmMeter_Range;
 
 typedef struct {
@@ -22,10 +25,11 @@ typedef struct {
 } OhmMeter_Result;
 
 static const OhmMeter_Range g_ohm_ranges[] = {
-    {CURRENT_RANGE_500uA, "200R", 200.0},
-    {CURRENT_RANGE_500uA, "2k", 2000.0},
-    {CURRENT_RANGE_150uA, "20k", 20000.0},
-    {CURRENT_RANGE_15uA, "200k", 200000.0},
+    /* 所有欧姆档位硬件参数和计算公式集中在这里，后续调校只需修改本表。 */
+    {CURRENT_RANGE_500uA, "200R", 200.0, 64U, 2475.0, 60.0},
+    {CURRENT_RANGE_500uA, "2k", 2000.0, 64U, 2475.0, 60.0},
+    {CURRENT_RANGE_150uA, "20k", 20000.0, 64U, 33000.0, 60.0},
+    {CURRENT_RANGE_15uA, "200k", 200000.0, 64U, 330000.0, 60.0},
 };
 
 static uint8_t g_ohm_range_idx = 0U;
@@ -33,20 +37,14 @@ static uint8_t g_ohm_auto_mode = 0U;
 static const char *g_manual_range_name = "200R";
 
 
-double OhmMeter_CalcResistance(uint32_t adc_val, Current_Type range)
+static double OhmMeter_CalcResistance(uint32_t adc_val, uint8_t range_idx)
 {
-    switch (range) {
-        case CURRENT_RANGE_500uA:
-            return (double)adc_val * 6600.0 / 65535.0 - 60.0;
-        case CURRENT_RANGE_150uA:
-            return (double)adc_val * 22000.0 / 65535.0 - 60.0;
-        case CURRENT_RANGE_15uA:
-            return (double)adc_val * 220000.0 / 65535.0 - 60.0;
-        case CURRENT_RANGE_10uA:
-            return (double)adc_val * 330000.0 / 65535.0 - 60.0;
-        default:
-            return 0.0;
+    if (range_idx >= (sizeof(g_ohm_ranges) / sizeof(g_ohm_ranges[0]))) {
+        return 0.0;
     }
+
+    return (double)adc_val * g_ohm_ranges[range_idx].adc_scale_ohm / 65535.0
+           - g_ohm_ranges[range_idx].adc_offset_ohm;
 }
 
 static void OhmMeter_ApplyRangeByIndex(uint8_t idx)
@@ -57,6 +55,7 @@ static void OhmMeter_ApplyRangeByIndex(uint8_t idx)
 
     g_ohm_range_idx = idx;
     SetCurrent(g_ohm_ranges[idx].current);
+    PGA_ChangeGain(g_ohm_ranges[idx].pga_gain);
 }
 
 static OhmMeter_Result OhmMeter_Read(void)
@@ -68,7 +67,7 @@ static OhmMeter_Result OhmMeter_Read(void)
         return result;
     }
 
-    result.resistance_ohm = OhmMeter_CalcResistance(raw, g_ohm_ranges[g_ohm_range_idx].current);
+    result.resistance_ohm = OhmMeter_CalcResistance(raw, g_ohm_range_idx);
     if (result.resistance_ohm < 0.0) {
         result.resistance_ohm = 0.0;
     }
@@ -144,9 +143,7 @@ void OhmMeter_Init()
 
     PowerBuffer_Init();
 
-    PGA_ChangeGain(8);
-    
-    SetCurrent(CURRENT_RANGE_500uA);//默认200欧档
+    OhmMeter_ApplyRangeByIndex(0U); // 默认200欧档，同时设置电流源和PGA增益
 
     ADC_SetDCMode(); // 配置ADC为直流测量模式
     HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED);// 校准ADC
@@ -169,7 +166,7 @@ void OhmMeter_2k_Ohm_Start(void)
 {
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "2k";
-    OhmMeter_ApplyRangeByIndex(0U);
+    OhmMeter_ApplyRangeByIndex(1U);
 }
 
 void OhmMeter_20k_Ohm_Start(void)
