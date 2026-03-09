@@ -1,11 +1,13 @@
 #include "freqmeter.h"
-
+#include "app.h"
 #include <stdio.h>
 
 #include "comp.h"
 #include "dac.h"
+#include "main.h"
 #include "stm32g4xx_hal_comp.h"
 #include "stm32g4xx_hal_dac.h"
+#include "stm32g4xx_hal_gpio.h"
 #include "stm32g4xx_hal_tim.h"
 #include "tim.h"
 #include "oled.h"
@@ -185,6 +187,7 @@ static void FreqMeter_DisplayCommon(void)
 
 void FreqMeter_Init(void)
 {
+	HAL_GPIO_WritePin(R_SW_GPIO_Port, R_SW_Pin, GPIO_PIN_RESET); // 关闭ohm档连接
 
 	ADC_SetDCMode();
 
@@ -209,15 +212,20 @@ void FreqMeter_Init(void)
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-	if ((htim->Instance != TIM1) || (htim->Channel != HAL_TIM_ACTIVE_CHANNEL_1)) {
-		return;
-	}
+	if ((htim->Instance == TIM1) && (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)) {
 
-	/* Always latch — let the reader handle validation. */
-	g_period_cnt_latched    = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-	g_high_cnt_latched      = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
-	g_prescaler_div_latched = htim->Instance->PSC + 1U;
-	g_capture_valid         = 1U;
+		/* Always latch — let the reader handle validation. */
+		g_period_cnt_latched    = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+		g_high_cnt_latched      = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+		g_prescaler_div_latched = htim->Instance->PSC + 1U;
+		g_capture_valid         = 1U;
+
+		if(g_mode!=APP_MODE_FREQ)
+		{
+			HAL_TIM_IC_Stop_IT(&htim1, TIM_CHANNEL_1);
+			HAL_TIM_IC_Stop(&htim1, TIM_CHANNEL_2);
+		}
+	}
 }
 
 void FreqMeter_20Hz_Start(void)

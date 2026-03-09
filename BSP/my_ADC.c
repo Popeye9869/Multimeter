@@ -2,9 +2,14 @@
 #include "stm32g4xx_hal_adc.h"
 #include <math.h>
 #include <stdint.h>
+#include "SEGGER_RTT.h"
+
+#include "arm_math.h" // 包含CMSIS DSP库头文件
 
 
 double rms_voltage = 0.0; // 定义全局变量存储交流电压的真有效值
+
+uint16_t adc_after_filter = 0; // 定义全局变量存储滤波后的ADC值
 uint16_t adc_value[ADC_BUFFER_LENGTH]; // 定义ADC值数组
 enum ADV_MODE ADC_MODE = DC_MODE; // 默认设置为直流测量模式
 
@@ -58,12 +63,19 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
         //计算交流电压真有效值
         uint64_t sum = 0;
         sum = 0; // 重置sum以计算平方和
+
         for (int i = 0; i < ADC_BUFFER_LENGTH; i++) 
         {
-            sum += (adc_value[i] - 4081) * (adc_value[i] - 4081); // 累加电压与平均值差值的平方
+            sum += (adc_value[i] - 4095) * (adc_value[i] - 4095); // 累加电压与平均值差值的平方
         }
         rms_voltage = sqrt(((double)sum) / ADC_BUFFER_LENGTH); // 计算真有效值
         // 这里可以将rms_voltage传递给OLED显示函数或者其他处理函数
         HAL_ADC_Start_DMA(&hadc2, (uint32_t *)adc_value, ADC_BUFFER_LENGTH); // 重新启动ADC DMA传输以继续测量
+    }
+    if(hadc->Instance == ADC2 && ADC_MODE == DC_MODE)
+    {
+        //DSP滤波处理
+        arm_mean_q15((q15_t *)adc_value, ADC_BUFFER_DC_LENGTH, (q15_t *)&adc_after_filter);
+        
     }
 }

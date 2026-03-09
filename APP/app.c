@@ -10,13 +10,6 @@
 #include "oled.h"
 #include "voltmeter.h"
 
-typedef enum {
-	APP_MODE_DCV = 0,
-	APP_MODE_ACV,
-	APP_MODE_FREQ,
-	APP_MODE_OHM,
-	APP_MODE_COUNT
-} AppMode;
 
 typedef struct {
 	uint8_t active;
@@ -30,7 +23,7 @@ typedef struct {
 #define DC_AUTO_TO_20V_THRESHOLD_V      1.95
 #define DC_AUTO_TO_2000MV_THRESHOLD_V   1.70
 
-static AppMode g_mode = APP_MODE_DCV;
+AppMode g_mode = APP_MODE_DCV;
 static uint8_t g_range_idx[APP_MODE_COUNT] = {0U, 0U, 2U, 0U};
 static uint8_t g_auto_enable[APP_MODE_COUNT] = {0U, 0U, 0U, 0U};
 static AppTransition g_transition = {0U, 0U, 280U, {0}, {0}};
@@ -198,7 +191,7 @@ static void App_UpdateDCAutoRange(void)
 		return;
 	}
 
-	raw = adc_value[0];
+	raw = adc_after_filter;
 	if ((raw > 64000U) || (raw < 500U)) {
 		if (g_range_idx[APP_MODE_DCV] != 0U) {
 			g_range_idx[APP_MODE_DCV] = 0U;

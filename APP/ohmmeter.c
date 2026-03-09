@@ -28,8 +28,8 @@ static const OhmMeter_Range g_ohm_ranges[] = {
     /* 所有欧姆档位硬件参数和计算公式集中在这里，后续调校只需修改本表。 */
     {CURRENT_RANGE_500uA, "200R", 200.0, 64U, 2475.0, 60.0},
     {CURRENT_RANGE_500uA, "2k", 2000.0, 64U, 2475.0, 60.0},
-    {CURRENT_RANGE_150uA, "20k", 20000.0, 64U, 33000.0, 60.0},
-    {CURRENT_RANGE_15uA, "200k", 200000.0, 64U, 330000.0, 60.0},
+    {CURRENT_RANGE_150uA, "20k", 20000.0, 16U, 33000.0, 60.0},
+    {CURRENT_RANGE_15uA, "200k", 200000.0, 16U, 330000.0, 60.0},
 };
 
 static uint8_t g_ohm_range_idx = 0U;
@@ -61,7 +61,7 @@ static void OhmMeter_ApplyRangeByIndex(uint8_t idx)
 static OhmMeter_Result OhmMeter_Read(void)
 {
     OhmMeter_Result result = {0.0, 0U};
-    uint16_t raw = adc_value[0];
+    uint16_t raw = adc_after_filter;
 
     if ((raw == 0U) || (raw == 65535U)) {
         return result;
@@ -138,16 +138,15 @@ void OhmMeter_Init()
 {
 
     HAL_GPIO_WritePin(R_SW_GPIO_Port, R_SW_Pin, GPIO_PIN_SET);//开启电流源输出
-
     HAL_OPAMP_Start(&hopamp3); // 启动运放作为电流源
 
-    PowerBuffer_Init();
+    PowerBuffer_SetLevel(POWER_BUFFER_LEVEL_LOW);
 
     OhmMeter_ApplyRangeByIndex(0U); // 默认200欧档，同时设置电流源和PGA增益
 
     ADC_SetDCMode(); // 配置ADC为直流测量模式
     HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED);// 校准ADC
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, 1); // 启动ADC并使用DMA传输数据到adc_value数组
+    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH); // 启动ADC并使用DMA传输数据到adc_value数组
 
     g_ohm_auto_mode = 0U;
     g_ohm_range_idx = 0U;

@@ -24,12 +24,14 @@
 #include "dma.h"
 #include "i2c.h"
 #include "opamp.h"
+#include "stm32g4xx_hal_gpio.h"
 #include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "app.h"
+#include "SEGGER_RTT.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -81,7 +83,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  SEGGER_RTT_Init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -105,6 +107,7 @@ int main(void)
   MX_DAC3_Init();
   /* USER CODE BEGIN 2 */
   APP_Init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
