@@ -6,6 +6,7 @@
 
 #define ADC_BUFFER_LENGTH 56000// 定义ADC缓冲区长度
 #define ADC_BUFFER_DC_LENGTH 200// 定义用于直流测量的ADC缓冲区长度
+#define ADC_BUFFER_CONT_LENGTH 32// 定义用于通断档的ADC缓冲区长度，优先响应速度
 
 #define DC_20V_Calc(adc_raw_16_65535_levelMid) ((((adc_raw_16_65535_levelMid / 65535.0) * 3.3-1.65)*1000/86)+0.010925)/0.97
 #define DC_2000mV_Calc(adc_raw_16_65535_levelMid) ((((adc_raw_16_65535_levelMid / 65535.0) * 3.3-1.65)*1000/(43*16))+0.01028315)/0.9667
@@ -22,3 +23,4 @@ extern enum ADV_MODE
 
 HAL_StatusTypeDef ADC_SetDCMode();
 HAL_StatusTypeDef ADC_SetACMode();
+HAL_StatusTypeDef ADC_StartDC_DMA(uint32_t sample_count);

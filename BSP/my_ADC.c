@@ -1,4 +1,5 @@
 #include "my_ADC.h"
+#include "app.h"
 #include "stm32g4xx_hal_adc.h"
 #include <math.h>
 #include <stdint.h>
@@ -55,6 +56,12 @@ HAL_StatusTypeDef ADC_SetACMode()
     return HAL_OK;
 }
 
+HAL_StatusTypeDef ADC_StartDC_DMA(uint32_t sample_count)
+{
+    HAL_ADC_Stop_DMA(&hadc2);
+    return HAL_ADC_Start_DMA(&hadc2, (uint32_t *)adc_value, sample_count);
+}
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
     if (hadc->Instance == ADC2 && ADC_MODE == AC_MODE)
@@ -74,6 +81,12 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     }
     if(hadc->Instance == ADC2 && ADC_MODE == DC_MODE)
     {
+        if (g_mode == APP_MODE_CONT)
+        {
+            arm_mean_q15((q15_t *)adc_value, ADC_BUFFER_CONT_LENGTH, (q15_t *)&adc_after_filter);
+            return;
+        }
+
         //DSP滤波处理
         arm_mean_q15((q15_t *)adc_value, ADC_BUFFER_DC_LENGTH, (q15_t *)&adc_after_filter);
         

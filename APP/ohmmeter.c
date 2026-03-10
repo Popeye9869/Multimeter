@@ -184,7 +184,7 @@ void OhmMeter_200_Ohm_Start()
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "200R";
     OhmMeter_ApplyRangeByIndex(0U);
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH); // 启动ADC并使用DMA传输数据到adc_value数组
+    ADC_StartDC_DMA(ADC_BUFFER_DC_LENGTH);
 }
 
 void OhmMeter_2k_Ohm_Start(void)
@@ -192,7 +192,7 @@ void OhmMeter_2k_Ohm_Start(void)
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "2k";
     OhmMeter_ApplyRangeByIndex(1U);
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
+    ADC_StartDC_DMA(ADC_BUFFER_DC_LENGTH);
 }
 
 void OhmMeter_20k_Ohm_Start(void)
@@ -200,7 +200,7 @@ void OhmMeter_20k_Ohm_Start(void)
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "20k";
     OhmMeter_ApplyRangeByIndex(2U);
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
+    ADC_StartDC_DMA(ADC_BUFFER_DC_LENGTH);
 }
 
 void OhmMeter_200k_Ohm_Start(void)
@@ -208,7 +208,7 @@ void OhmMeter_200k_Ohm_Start(void)
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "200k";
     OhmMeter_ApplyRangeByIndex(3U);
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
+    ADC_StartDC_DMA(ADC_BUFFER_DC_LENGTH);
 }
 
 void OhmMeter_Diode_Start(void)
@@ -217,7 +217,7 @@ void OhmMeter_Diode_Start(void)
     g_manual_range_name = "DIODE";
     SetCurrent(CURRENT_RANGE_500uA);
     PGA_ChangeGain(OHM_DIODE_PGA_GAIN);
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
+    ADC_StartDC_DMA(ADC_BUFFER_DC_LENGTH);
 }
 
 void OhmMeter_Continuity_Start(void)
@@ -225,14 +225,14 @@ void OhmMeter_Continuity_Start(void)
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "CONT";
     OhmMeter_ApplyRangeByIndex(0U);
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, 1);
+    ADC_StartDC_DMA(ADC_BUFFER_CONT_LENGTH);
 }
 
 void OhmMeter_Auto_Start(void)
 {
     g_ohm_auto_mode = 1U;
     OhmMeter_ApplyRangeByIndex(1U);
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_value, ADC_BUFFER_DC_LENGTH);
+    ADC_StartDC_DMA(ADC_BUFFER_DC_LENGTH);
 }
 
 void OhmMeter_200_Ohm_Display()
