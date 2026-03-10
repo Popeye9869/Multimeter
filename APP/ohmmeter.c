@@ -27,7 +27,7 @@ typedef struct {
 static const OhmMeter_Range g_ohm_ranges[] = {
     /* 所有欧姆档位硬件参数和计算公式集中在这里，后续调校只需修改本表。 */
     {CURRENT_RANGE_500uA, "200R", 200.0, 64U, 2490.94202899, 619.2944847},
-    {CURRENT_RANGE_500uA, "2k", 2000.0, 64U, 2490.94202899, 619.2944847},
+    {CURRENT_RANGE_400uA, "2k", 2000.0, 64U, 3113.6775, 619.2944847},
     {CURRENT_RANGE_150uA, "20k", 20000.0, 16U, 33570.7020, 616.2},
     {CURRENT_RANGE_15uA, "200k", 200000.0, 16U, 330000.0, 60.0},
 };
@@ -38,6 +38,7 @@ static const char *g_manual_range_name = "200R";
 
 #define OHM_DIODE_PGA_GAIN 16U
 #define OHM_CONTINUITY_THRESHOLD_OHM 10.0
+#define OHM_OVER_RANGE_RATIO 1.10
 
 
 static double OhmMeter_CalcResistance(uint32_t adc_val, uint8_t range_idx)
@@ -71,9 +72,9 @@ static OhmMeter_Result OhmMeter_Read(void)
     }
 
     result.resistance_ohm = OhmMeter_CalcResistance(raw, g_ohm_range_idx);
-    if (result.resistance_ohm < 0.0) {
-        result.resistance_ohm = 0.0;
-    }
+    // if (result.resistance_ohm < 0.0) {
+    //     result.resistance_ohm = 0.0;
+    // }
     result.valid = 1U;
 
     return result;
@@ -81,7 +82,7 @@ static OhmMeter_Result OhmMeter_Read(void)
 
 static double OhmMeter_CalcDiodeVoltage(uint32_t adc_val)
 {
-    double voltage = DC_2000mV_Calc(adc_val)+2.436;
+    double voltage = DC_2000mV_Calc(adc_val)+2.152;
 
     if (voltage < 0.0) {
         return 0.0;
@@ -134,6 +135,18 @@ static uint8_t OhmMeter_AutoChooseRange(double resistance_ohm)
     return OhmMeter_SuggestRangeIndex(resistance_ohm);
 }
 
+static uint8_t OhmMeter_IsOverRange(const OhmMeter_Result *result)
+{
+    double over_limit;
+
+    if ((result == NULL) || (result->valid == 0U)) {
+        return 1U;
+    }
+
+    over_limit = g_ohm_ranges[g_ohm_range_idx].upper_ohm * OHM_OVER_RANGE_RATIO;
+    return (result->resistance_ohm > over_limit) ? 1U : 0U;
+}
+
 static void OhmMeter_DisplayCommon(void)
 {
     OhmMeter_Result result = OhmMeter_Read();
@@ -146,7 +159,7 @@ static void OhmMeter_DisplayCommon(void)
     }
     OLED_PrintString(0, 0, disp_str, &font16x16, OLED_COLOR_NORMAL);
 
-    if (result.valid == 0U) {
+    if (OhmMeter_IsOverRange(&result) != 0U) {
         sprintf(disp_str, " 0L");
         OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
         return;
@@ -279,7 +292,7 @@ void OhmMeter_Continuity_Display(void)
 
     OLED_PrintString(0, 0, "CONT 10R", &font16x16, OLED_COLOR_NORMAL);
 
-    if (result.valid == 0U) {
+    if (OhmMeter_IsOverRange(&result) != 0U) {
         HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
         sprintf(disp_str, " 0L");
         OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);

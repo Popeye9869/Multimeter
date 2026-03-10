@@ -110,7 +110,7 @@ void VoltMeter_AC2000mV_Start()
 
 double VoltMeter_AC20V_CalcValue()
 {
-    return VoltMeter_AC_Input_Calc(VOLT_AC20V_PGA_GAIN);
+    return VoltMeter_AC_Input_Calc(VOLT_AC20V_PGA_GAIN)/0.9721;
 }
 
 double VoltMeter_AC2000mV_CalcValue()
