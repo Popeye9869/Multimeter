@@ -96,7 +96,7 @@ void MX_OPAMP3_Init(void)
 
   /* USER CODE END OPAMP3_Init 1 */
   hopamp3.Instance = OPAMP3;
-  hopamp3.Init.PowerMode = OPAMP_POWERMODE_NORMALSPEED;
+  hopamp3.Init.PowerMode = OPAMP_POWERMODE_HIGHSPEED;
   hopamp3.Init.Mode = OPAMP_STANDALONE_MODE;
   hopamp3.Init.InvertingInput = OPAMP_INVERTINGINPUT_IO0;
   hopamp3.Init.NonInvertingInput = OPAMP_NONINVERTINGINPUT_IO0;
