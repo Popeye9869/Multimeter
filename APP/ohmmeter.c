@@ -27,7 +27,7 @@ typedef struct {
 static const OhmMeter_Range g_ohm_ranges[] = {
     /* 所有欧姆档位硬件参数和计算公式集中在这里，后续调校只需修改本表。 */
     {CURRENT_RANGE_500uA, "200R", 200.0, 64U, 2490.94202899, 619.2944847},
-    {CURRENT_RANGE_400uA, "2k", 2000.0, 64U, 3113.6775, 619.2944847},
+    {CURRENT_RANGE_400uA, "2k", 2000.0, 64U, 3113.6775, 613.2944847},
     {CURRENT_RANGE_150uA, "20k", 20000.0, 16U, 33570.7020, 616.2},
     {CURRENT_RANGE_15uA, "200k", 200000.0, 16U, 330000.0, 60.0},
 };

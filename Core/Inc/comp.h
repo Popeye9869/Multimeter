@@ -34,11 +34,14 @@ extern "C" {
 
 extern COMP_HandleTypeDef hcomp1;
 
+extern COMP_HandleTypeDef hcomp7;
+
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
 
 void MX_COMP1_Init(void);
+void MX_COMP7_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 

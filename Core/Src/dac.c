@@ -25,6 +25,7 @@
 /* USER CODE END 0 */
 
 DAC_HandleTypeDef hdac1;
+DAC_HandleTypeDef hdac2;
 DAC_HandleTypeDef hdac3;
 
 /* DAC1 init function */
@@ -67,6 +68,48 @@ void MX_DAC1_Init(void)
   /* USER CODE BEGIN DAC1_Init 2 */
 
   /* USER CODE END DAC1_Init 2 */
+
+}
+/* DAC2 init function */
+void MX_DAC2_Init(void)
+{
+
+  /* USER CODE BEGIN DAC2_Init 0 */
+
+  /* USER CODE END DAC2_Init 0 */
+
+  DAC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN DAC2_Init 1 */
+
+  /* USER CODE END DAC2_Init 1 */
+
+  /** DAC Initialization
+  */
+  hdac2.Instance = DAC2;
+  if (HAL_DAC_Init(&hdac2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** DAC channel OUT1 config
+  */
+  sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_AUTOMATIC;
+  sConfig.DAC_DMADoubleDataMode = DISABLE;
+  sConfig.DAC_SignedFormat = DISABLE;
+  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
+  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
+  sConfig.DAC_Trigger2 = DAC_TRIGGER_NONE;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_DISABLE;
+  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_INTERNAL;
+  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
+  if (HAL_DAC_ConfigChannel(&hdac2, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DAC2_Init 2 */
+
+  /* USER CODE END DAC2_Init 2 */
 
 }
 /* DAC3 init function */
@@ -137,6 +180,17 @@ void HAL_DAC_MspInit(DAC_HandleTypeDef* dacHandle)
 
   /* USER CODE END DAC1_MspInit 1 */
   }
+  else if(dacHandle->Instance==DAC2)
+  {
+  /* USER CODE BEGIN DAC2_MspInit 0 */
+
+  /* USER CODE END DAC2_MspInit 0 */
+    /* DAC2 clock enable */
+    __HAL_RCC_DAC2_CLK_ENABLE();
+  /* USER CODE BEGIN DAC2_MspInit 1 */
+
+  /* USER CODE END DAC2_MspInit 1 */
+  }
   else if(dacHandle->Instance==DAC3)
   {
   /* USER CODE BEGIN DAC3_MspInit 0 */
@@ -169,6 +223,17 @@ void HAL_DAC_MspDeInit(DAC_HandleTypeDef* dacHandle)
   /* USER CODE BEGIN DAC1_MspDeInit 1 */
 
   /* USER CODE END DAC1_MspDeInit 1 */
+  }
+  else if(dacHandle->Instance==DAC2)
+  {
+  /* USER CODE BEGIN DAC2_MspDeInit 0 */
+
+  /* USER CODE END DAC2_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_DAC2_CLK_DISABLE();
+  /* USER CODE BEGIN DAC2_MspDeInit 1 */
+
+  /* USER CODE END DAC2_MspDeInit 1 */
   }
   else if(dacHandle->Instance==DAC3)
   {

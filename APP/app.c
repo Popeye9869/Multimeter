@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "capmeter.h"
+#include "font.h"
 #include "freqmeter.h"
 #include "key.h"
 #include "my_ADC.h"
@@ -28,8 +30,8 @@ typedef struct {
 #define AC_AUTO_TO_2000MV_THRESHOLD_V   1.70
 
 AppMode g_mode = APP_MODE_DCV;
-static uint8_t g_range_idx[APP_MODE_COUNT] = {0U, 0U, 2U, 0U, 0U, 0U};
-static uint8_t g_auto_enable[APP_MODE_COUNT] = {0U, 0U, 0U, 0U, 0U, 0U};
+static uint8_t g_range_idx[APP_MODE_COUNT] = {0U, 0U, 2U, 0U, 1U, 0U, 0U};
+static uint8_t g_auto_enable[APP_MODE_COUNT] = {0U, 0U, 0U, 0U, 0U, 0U, 0U};
 static AppTransition g_transition = {0U, 0U, 280U, {0}, {0}};
 
 static uint8_t App_GetRangeCount(AppMode mode)
@@ -44,6 +46,10 @@ static uint8_t App_GetRangeCount(AppMode mode)
 
 	if (mode == APP_MODE_OHM) {
 		return 4U;
+	}
+
+	if (mode == APP_MODE_CAP) {
+		return 3U;
 	}
 
 	if (mode == APP_MODE_DIODE) {
@@ -105,6 +111,22 @@ static void App_GetStatusText(char *buf, size_t len)
 		return;
 	}
 
+	if (g_mode == APP_MODE_CAP) {
+		if (g_auto_enable[APP_MODE_CAP] != 0U) {
+			snprintf(buf, len, "CAP AUTO");
+			return;
+		}
+
+		if (g_range_idx[APP_MODE_CAP] == 0U) {
+			snprintf(buf, len, "CAP 20nF");
+		} else if (g_range_idx[APP_MODE_CAP] == 1U) {
+			snprintf(buf, len, "CAP 2uF");
+		} else {
+			snprintf(buf, len, "CAP 200uF");
+		}
+		return;
+	}
+
 	if (g_mode == APP_MODE_DIODE) {
 		snprintf(buf, len, "DIODE");
 		return;
@@ -154,6 +176,11 @@ static void App_InitModuleByMode(AppMode mode)
 		return;
 	}
 
+	if (mode == APP_MODE_CAP) {
+		CapMeter_Init();
+		return;
+	}
+
 	OhmMeter_Init();
 }
 
@@ -193,6 +220,22 @@ static void App_ApplyCurrentSetting(void)
 			OhmMeter_20k_Ohm_Start();
 		} else {
 			OhmMeter_200k_Ohm_Start();
+		}
+		return;
+	}
+
+	if (g_mode == APP_MODE_CAP) {
+		if (g_auto_enable[APP_MODE_CAP] != 0U) {
+			CapMeter_Auto_Start();
+			return;
+		}
+
+		if (g_range_idx[APP_MODE_CAP] == 0U) {
+			CapMeter_20nF_Start();
+		} else if (g_range_idx[APP_MODE_CAP] == 1U) {
+			CapMeter_2uF_Start();
+		} else {
+			CapMeter_200uF_Start();
 		}
 		return;
 	}
@@ -345,6 +388,22 @@ static void App_RenderMeasurement(void)
 		return;
 	}
 
+	if (g_mode == APP_MODE_CAP) {
+		if (g_auto_enable[APP_MODE_CAP] != 0U) {
+			CapMeter_Auto_Display();
+			return;
+		}
+
+		if (g_range_idx[APP_MODE_CAP] == 0U) {
+			CapMeter_20nF_Display();
+		} else if (g_range_idx[APP_MODE_CAP] == 1U) {
+			CapMeter_2uF_Display();
+		} else {
+			CapMeter_200uF_Display();
+		}
+		return;
+	}
+
 	if (g_mode == APP_MODE_DIODE) {
 		OhmMeter_Diode_Display();
 		return;
@@ -400,6 +459,15 @@ static void App_RenderTransition(void)
 void APP_Init()
 {
     OLED_Init();
+	OLED_NewFrame();
+	OLED_PrintString(0, 0,"数字万用表", &font16x16, OLED_COLOR_NORMAL);
+	OLED_PrintString(0, 20, "许浩然", &font16x16, OLED_COLOR_NORMAL);
+	OLED_PrintString(0, 40, "24201163", &font16x16, OLED_COLOR_NORMAL);
+	OLED_ShowFrame();
+	HAL_Delay(2500U);
+
+
+
 	Key_Init();
 
 	g_mode = APP_MODE_DCV;
@@ -407,12 +475,14 @@ void APP_Init()
 	g_range_idx[APP_MODE_ACV] = 0U;
 	g_range_idx[APP_MODE_FREQ] = 2U;
 	g_range_idx[APP_MODE_OHM] = 0U;
+	g_range_idx[APP_MODE_CAP] = 1U;
 	g_range_idx[APP_MODE_DIODE] = 0U;
 	g_range_idx[APP_MODE_CONT] = 0U;
 	g_auto_enable[APP_MODE_DCV] = 0U;
 	g_auto_enable[APP_MODE_ACV] = 0U;
 	g_auto_enable[APP_MODE_FREQ] = 0U;
 	g_auto_enable[APP_MODE_OHM] = 0U;
+	g_auto_enable[APP_MODE_CAP] = 0U;
 	g_auto_enable[APP_MODE_DIODE] = 0U;
 	g_auto_enable[APP_MODE_CONT] = 0U;
 
@@ -445,7 +515,8 @@ void ChangRange()
 
 	App_GetStatusText(from_text, sizeof(from_text));
 
-	if ((g_mode == APP_MODE_DCV) || (g_mode == APP_MODE_ACV) || (g_mode == APP_MODE_FREQ) || (g_mode == APP_MODE_OHM)) {
+	if ((g_mode == APP_MODE_DCV) || (g_mode == APP_MODE_ACV) || (g_mode == APP_MODE_FREQ)
+		|| (g_mode == APP_MODE_OHM) || (g_mode == APP_MODE_CAP)) {
 		g_auto_enable[g_mode] = 0U;
 	}
 
@@ -467,7 +538,8 @@ static void App_EnableAuto(void)
 	char from_text[20];
 	char to_text[20];
 
-	if ((g_mode != APP_MODE_DCV) && (g_mode != APP_MODE_ACV) && (g_mode != APP_MODE_FREQ) && (g_mode != APP_MODE_OHM)) {
+	if ((g_mode != APP_MODE_DCV) && (g_mode != APP_MODE_ACV) && (g_mode != APP_MODE_FREQ)
+		&& (g_mode != APP_MODE_OHM) && (g_mode != APP_MODE_CAP)) {
 		return;
 	}
 
@@ -480,6 +552,8 @@ static void App_EnableAuto(void)
 		g_range_idx[APP_MODE_ACV] = 0U;
 	} else if (g_mode == APP_MODE_OHM) {
 		g_range_idx[APP_MODE_OHM] = 1U;
+	} else if (g_mode == APP_MODE_CAP) {
+		g_range_idx[APP_MODE_CAP] = 1U;
 	}
 	App_ApplyCurrentSetting();
 
