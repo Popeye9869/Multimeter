@@ -62,12 +62,18 @@ static uint32_t g_last_measure_tick = 0U;
 static CapMeter_Stage g_last_stage = CAP_STAGE_IDLE;
 static uint32_t g_last_elapsed_us = 0U;
 static uint32_t g_cap_timer_tick_hz = CAP_DEFAULT_TIMER_HZ;
+static uint8_t g_meas_active = 0U;
+static uint8_t g_meas_range_idx = 1U;
+static uint32_t g_meas_discharge_start_ticks = 0U;
+static uint32_t g_meas_discharge_ticks = 0U;
+static uint32_t g_meas_timeout_ms = 0U;
+static uint32_t g_meas_wait_start_ms = 0U;
 
-static volatile uint8_t g_comp7_hit = 0U;
 static volatile uint8_t g_comp7_measure_active = 0U;
 static volatile uint32_t g_comp7_latched_us = 0U;
 static volatile uint8_t g_comp7_wait_zero = 0U;
 static volatile uint8_t g_comp7_zero_seen = 0U;
+static volatile uint8_t g_comp7_second_edge_done = 0U;
 
 static uint32_t CapMeter_GetTIM2ClockHz(void)
 {
@@ -251,97 +257,123 @@ static void CapMeter_StopMeasurementPath(void)
     SetCurrent(CURRENT_RANGE_N500uA);
 }
 
-static CapMeter_Result CapMeter_MeasureByIndex(uint8_t idx)
+static void CapMeter_StartMeasurement(uint8_t idx)
 {
-    CapMeter_Result result = {0.0, 0U, 0U};
     uint32_t discharge_us;
     uint32_t timeout_us;
-    uint32_t start_wait_ticks;
-    uint32_t timeout_ticks;
-    uint32_t elapsed_ticks;
-
     if (idx >= (sizeof(g_cap_ranges) / sizeof(g_cap_ranges[0]))) {
-        return result;
+        return;
     }
 
     discharge_us = CapMeter_CalcDischargeUsByRange(idx);
     timeout_us = g_cap_ranges[idx].charge_timeout_us;
 
     CapMeter_PrepareHardware(idx);
-    timeout_ticks = CapMeter_UsToTicks(timeout_us);
+    g_meas_active = 1U;
+    g_meas_range_idx = idx;
+    g_meas_discharge_ticks = CapMeter_UsToTicks(discharge_us);
+    g_meas_timeout_ms = (timeout_us / 1000U) + 50U;
+    g_meas_wait_start_ms = 0U;
+
+    g_comp7_latched_us = 0U;
+    g_comp7_wait_zero = 0U;
+    g_comp7_zero_seen = 0U;
+    g_comp7_second_edge_done = 0U;
+    g_comp7_measure_active = 0U;
 
     g_last_stage = CAP_STAGE_DISCHARGE;
     SetCurrent(CURRENT_RANGE_N500uA);
     HAL_Delay(CAP_SWITCH_SETTLE_MS);
     CapMeter_ResetTimerUs();
-    CapMeter_WaitUs(discharge_us);
+    g_meas_discharge_start_ticks = CapMeter_GetElapsedTicks();
+}
 
-    CapMeter_SetCompThreshold(CAP_COMP_V_PRECHARGE);
-    g_comp7_hit = 0U;
-    g_comp7_latched_us = 0U;
-    g_comp7_measure_active = 0U;
-    g_comp7_wait_zero = 1U;
-    g_comp7_zero_seen = 0U;
-    HAL_COMP_Stop(&hcomp7);
-    HAL_COMP_Start(&hcomp7);
-    CapMeter_WaitUs(CAP_COMP_SETTLE_US);
-
-    g_last_stage = CAP_STAGE_CHARGE;
-    HAL_TIM_Base_Stop(&htim2);
-    CapMeter_ResetTimerUs();
-    g_comp7_measure_active = 1U;
-    SetCurrent(CURRENT_RANGE_500uA);
-
-    g_last_stage = CAP_STAGE_WAIT_IRQ;
-    start_wait_ticks = CapMeter_GetElapsedTicks();
-    while (g_comp7_hit == 0U) {
-        elapsed_ticks = CapMeter_GetElapsedTicks() - start_wait_ticks;
-        if (elapsed_ticks > timeout_ticks) {
-            CapMeter_StopMeasurementPath();
-            result.over_range = 1U;
-            g_last_elapsed_us = CapMeter_TicksToUs(elapsed_ticks);
-            return result;
-        }
-    }
+static void CapMeter_FinishMeasurement(uint8_t success, uint32_t latched_ticks)
+{
+    CapMeter_Result result = {0.0, 0U, 0U};
 
     CapMeter_StopMeasurementPath();
+    g_meas_active = 0U;
 
-    g_last_elapsed_us = CapMeter_TicksToUs(g_comp7_latched_us);
-    result.capacitance_f = CapMeter_CalcFromElapsedTicks(g_comp7_latched_us);
+    if (success == 0U) {
+        result.over_range = 1U;
+        result.valid = 0U;
+        g_last_elapsed_us = 0U;
+        g_last_result = result;
+        g_last_measure_tick = HAL_GetTick();
+        return;
+    }
+
+    g_last_elapsed_us = CapMeter_TicksToUs(latched_ticks);
+    result.capacitance_f = CapMeter_CalcFromElapsedTicks(latched_ticks);
     if (result.capacitance_f <= 0.0) {
         result.over_range = 1U;
-        return result;
+        g_last_result = result;
+        g_last_measure_tick = HAL_GetTick();
+        return;
     }
 
     result.valid = 1U;
-    result.over_range = (result.capacitance_f > (g_cap_ranges[idx].upper_f * CAP_OVER_RANGE_RATIO)) ? 1U : 0U;
-    g_last_stage = CAP_STAGE_DONE;
-    return result;
-}
+    result.over_range = (result.capacitance_f > (g_cap_ranges[g_meas_range_idx].upper_f * CAP_OVER_RANGE_RATIO)) ? 1U : 0U;
 
-static CapMeter_Result CapMeter_RunMeasurement(void)
-{
-    CapMeter_Result result;
-    uint8_t idx = g_cap_range_idx;
-
-    if (g_cap_auto_mode == 0U) {
-        return CapMeter_MeasureByIndex(idx);
+    if ((g_cap_auto_mode != 0U) && (result.over_range != 0U) && (g_meas_range_idx < 2U)) {
+        g_cap_range_idx = (uint8_t)(g_meas_range_idx + 1U);
+        CapMeter_StartMeasurement(g_cap_range_idx);
+        return;
     }
 
-    for (;;) {
-        result = CapMeter_MeasureByIndex(idx);
-        if ((result.valid != 0U) && (result.over_range == 0U)) {
-            g_cap_range_idx = CapMeter_SuggestRangeIndex(result.capacitance_f);
-            return result;
+    if ((g_cap_auto_mode != 0U) && (result.valid != 0U) && (result.over_range == 0U)) {
+        g_cap_range_idx = CapMeter_SuggestRangeIndex(result.capacitance_f);
+    }
+
+    g_last_stage = CAP_STAGE_DONE;
+    g_last_result = result;
+    g_last_measure_tick = HAL_GetTick();
+}
+
+static void CapMeter_ServiceMeasurement(void)
+{
+    if (g_meas_active == 0U) {
+        return;
+    }
+
+    if (g_last_stage == CAP_STAGE_DISCHARGE) {
+        uint32_t elapsed = CapMeter_GetElapsedTicks() - g_meas_discharge_start_ticks;
+        if (elapsed < g_meas_discharge_ticks) {
+            return;
         }
 
-        if ((result.over_range == 0U) || (idx >= 2U)) {
-            g_cap_range_idx = idx;
-            return result;
+        CapMeter_SetCompThreshold(CAP_COMP_V_PRECHARGE);
+        g_comp7_latched_us = 0U;
+        g_comp7_measure_active = 0U;
+        g_comp7_wait_zero = 1U;
+        g_comp7_zero_seen = 0U;
+        g_comp7_second_edge_done = 0U;
+        HAL_COMP_Stop(&hcomp7);
+        HAL_COMP_Start(&hcomp7);
+        CapMeter_WaitUs(CAP_COMP_SETTLE_US);
+
+        g_last_stage = CAP_STAGE_CHARGE;
+        HAL_TIM_Base_Stop(&htim2);
+        CapMeter_ResetTimerUs();
+        g_comp7_measure_active = 1U;
+        SetCurrent(CURRENT_RANGE_500uA);
+
+        g_last_stage = CAP_STAGE_WAIT_IRQ;
+        g_meas_wait_start_ms = HAL_GetTick();
+        return;
+    }
+
+    if (g_last_stage == CAP_STAGE_WAIT_IRQ) {
+        if (g_comp7_second_edge_done != 0U) {
+            g_comp7_second_edge_done = 0U;
+            CapMeter_FinishMeasurement(1U, g_comp7_latched_us);
+            return;
         }
 
-        idx++;
-        g_cap_range_idx = idx;
+        if ((HAL_GetTick() - g_meas_wait_start_ms) > g_meas_timeout_ms) {
+            CapMeter_FinishMeasurement(0U, 0U);
+        }
     }
 }
 
@@ -362,12 +394,17 @@ static uint8_t CapMeter_ShouldRefresh(void)
 
 static void CapMeter_EnsureMeasurement(void)
 {
+    if (g_meas_active != 0U) {
+        CapMeter_ServiceMeasurement();
+        return;
+    }
+
     if (CapMeter_ShouldRefresh() == 0U) {
         return;
     }
 
-    g_last_result = CapMeter_RunMeasurement();
-    g_last_measure_tick = HAL_GetTick();
+    CapMeter_StartMeasurement(g_cap_range_idx);
+    CapMeter_ServiceMeasurement();
 }
 
 static void CapMeter_DisplayValue(const CapMeter_Result *result)
@@ -423,6 +460,7 @@ void CapMeter_Init(void)
     g_last_measure_tick = 0U;
     g_last_stage = CAP_STAGE_IDLE;
     g_last_elapsed_us = 0U;
+    g_meas_active = 0U;
 
     CapMeter_PrepareHardware(g_cap_range_idx);
     SetCurrent(CURRENT_RANGE_N500uA);
@@ -436,6 +474,7 @@ void CapMeter_20nF_Start(void)
     g_cap_range_idx = 0U;
     g_cap_manual_name = "20nF";
     g_last_result.valid = 0U;
+    g_meas_active = 0U;
 }
 
 void CapMeter_2uF_Start(void)
@@ -444,6 +483,7 @@ void CapMeter_2uF_Start(void)
     g_cap_range_idx = 1U;
     g_cap_manual_name = "2uF";
     g_last_result.valid = 0U;
+    g_meas_active = 0U;
 }
 
 void CapMeter_200uF_Start(void)
@@ -452,6 +492,7 @@ void CapMeter_200uF_Start(void)
     g_cap_range_idx = 2U;
     g_cap_manual_name = "200uF";
     g_last_result.valid = 0U;
+    g_meas_active = 0U;
 }
 
 void CapMeter_Auto_Start(void)
@@ -459,6 +500,7 @@ void CapMeter_Auto_Start(void)
     g_cap_auto_mode = 1U;
     g_cap_range_idx = 1U;
     g_last_result.valid = 0U;
+    g_meas_active = 0U;
 }
 
 void CapMeter_20nF_Display(void)
@@ -502,6 +544,6 @@ void HAL_COMP_TriggerCallback(COMP_HandleTypeDef *hcomp)
     }
 
     g_comp7_latched_us = CapMeter_GetElapsedTicks();
-    g_comp7_hit = 1U;
+    g_comp7_second_edge_done = 1U;
     g_comp7_measure_active = 0U;
 }

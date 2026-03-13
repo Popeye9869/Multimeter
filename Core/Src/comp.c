@@ -69,7 +69,7 @@ void MX_COMP7_Init(void)
   hcomp7.Init.InputPlus = COMP_INPUT_PLUS_IO1;
   hcomp7.Init.InputMinus = COMP_INPUT_MINUS_DAC2_CH1;
   hcomp7.Init.OutputPol = COMP_OUTPUTPOL_NONINVERTED;
-  hcomp7.Init.Hysteresis = COMP_HYSTERESIS_NONE;
+  hcomp7.Init.Hysteresis = COMP_HYSTERESIS_MEDIUM;
   hcomp7.Init.BlankingSrce = COMP_BLANKINGSRC_NONE;
   hcomp7.Init.TriggerMode = COMP_TRIGGERMODE_IT_RISING;
   if (HAL_COMP_Init(&hcomp7) != HAL_OK)

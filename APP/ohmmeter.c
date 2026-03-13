@@ -28,8 +28,8 @@ static const OhmMeter_Range g_ohm_ranges[] = {
     /* 所有欧姆档位硬件参数和计算公式集中在这里，后续调校只需修改本表。 */
     {CURRENT_RANGE_500uA, "200R", 200.0, 64U, 2490.94202899, 619.2944847},
     {CURRENT_RANGE_400uA, "2k", 2000.0, 64U, 3113.6775, 613.2944847},
-    {CURRENT_RANGE_150uA, "20k", 20000.0, 16U, 33570.7020, 616.2},
-    {CURRENT_RANGE_15uA, "200k", 200000.0, 16U, 330000.0, 60.0},
+    {CURRENT_RANGE_150uA, "20k", 20000.0, 16U, 33570.7020, 576.2},
+    {CURRENT_RANGE_15uA, "200k", 200000.0, 16U, 330000.0, 576.0},
 };
 
 static uint8_t g_ohm_range_idx = 0U;
@@ -38,15 +38,24 @@ static const char *g_manual_range_name = "200R";
 
 #define OHM_DIODE_PGA_GAIN 16U
 #define OHM_CONTINUITY_THRESHOLD_OHM 10.0
-#define OHM_OVER_RANGE_RATIO 1.10
+#define OHM_OVER_RANGE_RATIO 1.05
 #define OHM_OL_DOT_MS 220U
 #define OHM_ADC_LOW_THRESHOLD 500U
 #define OHM_ADC_HIGH_THRESHOLD 65000U
 #define OHM_DIODE_MAX_FORWARD_V 2.90
+#define OHM_DIODE_SETTLE_MS 25U
+
+typedef enum {
+    OHM_DIODE_POLARITY_FORWARD = 0,
+    OHM_DIODE_POLARITY_REVERSE
+} OhmMeter_DiodePolarity;
+
+static OhmMeter_DiodePolarity g_diode_polarity = OHM_DIODE_POLARITY_FORWARD;
+static uint32_t g_diode_switch_tick = 0U;
 
 static uint8_t OhmMeter_IsRawNearRail(uint16_t raw)
 {
-    return ((raw <= OHM_ADC_LOW_THRESHOLD) || (raw >= OHM_ADC_HIGH_THRESHOLD)) ? 1U : 0U;
+    return (raw >= OHM_ADC_HIGH_THRESHOLD) ? 1U : 0U;
 }
 
 static void OhmMeter_ShowOverRangeAnimated(void)
@@ -108,6 +117,10 @@ static OhmMeter_Result OhmMeter_Read(void)
 
 static double OhmMeter_CalcDiodeVoltage(uint32_t adc_val)
 {
+    if(g_diode_polarity == OHM_DIODE_POLARITY_REVERSE) {
+        /* 反向测量时电压较高，使用200k档的计算参数更合适。 */
+        return 4.3-(DC_2000mV_Calc(adc_val)+2.152);
+    }
     double voltage = DC_2000mV_Calc(adc_val)+2.152;
 
     if (voltage < 0.0) {
@@ -184,6 +197,23 @@ static uint8_t OhmMeter_IsDiodeOverRange(double voltage_v, uint8_t valid)
     }
 
     return 0U;
+}
+
+static void OhmMeter_SetDiodePolarity(OhmMeter_DiodePolarity polarity)
+{
+    g_diode_polarity = polarity;
+    g_diode_switch_tick = HAL_GetTick();
+
+    if (polarity == OHM_DIODE_POLARITY_FORWARD) {
+        SetCurrent(CURRENT_RANGE_500uA);
+    } else {
+        SetCurrent(CURRENT_RANGE_N500uA);
+    }
+}
+
+static uint8_t OhmMeter_IsDiodeSettled(void)
+{
+    return ((HAL_GetTick() - g_diode_switch_tick) >= OHM_DIODE_SETTLE_MS) ? 1U : 0U;
 }
 
 static void OhmMeter_DisplayCommon(void)
@@ -266,7 +296,7 @@ void OhmMeter_Diode_Start(void)
 {
     g_ohm_auto_mode = 0U;
     g_manual_range_name = "DIODE";
-    SetCurrent(CURRENT_RANGE_500uA);
+    OhmMeter_SetDiodePolarity(OHM_DIODE_POLARITY_FORWARD);
     PGA_ChangeGain(OHM_DIODE_PGA_GAIN);
     ADC_StartDC_DMA(ADC_BUFFER_DC_LENGTH);
 }
@@ -312,10 +342,28 @@ void OhmMeter_Diode_Display(void)
     uint8_t valid;
     char disp_str[24];
 
-    OLED_PrintString(0, 0, "DIODE 500uA", &font16x16, OLED_COLOR_NORMAL);
+    if (g_diode_polarity == OHM_DIODE_POLARITY_FORWARD) {
+        OLED_PrintString(0, 0, "DIODE +500uA", &font16x16, OLED_COLOR_NORMAL);
+    } else {
+        OLED_PrintString(0, 0, "DIODE REV", &font16x16, OLED_COLOR_NORMAL);
+    }
+
+    if (OhmMeter_IsDiodeSettled() == 0U) {
+        OLED_PrintString(0, 20, " REVERSED?", &font16x16, OLED_COLOR_NORMAL);
+        return;
+    }
 
     valid = OhmMeter_ReadDiodeVoltage(&voltage_v);
     if (OhmMeter_IsDiodeOverRange(voltage_v, valid) != 0U) {
+        if (g_diode_polarity == OHM_DIODE_POLARITY_FORWARD) {
+            /* Forward path is overrange: retry once with reverse test current. */
+            OhmMeter_SetDiodePolarity(OHM_DIODE_POLARITY_REVERSE);
+            OLED_PrintString(0, 20, " REVERSED?", &font16x16, OLED_COLOR_NORMAL);
+            return;
+        }
+
+        /* Reverse path is also overrange: return to forward and keep OL animation. */
+        OhmMeter_SetDiodePolarity(OHM_DIODE_POLARITY_FORWARD);
         OhmMeter_ShowOverRangeAnimated();
         return;
     }
