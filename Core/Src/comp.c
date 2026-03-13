@@ -42,7 +42,7 @@ void MX_COMP1_Init(void)
   hcomp1.Init.InputPlus = COMP_INPUT_PLUS_IO1;
   hcomp1.Init.InputMinus = COMP_INPUT_MINUS_DAC3_CH1;
   hcomp1.Init.OutputPol = COMP_OUTPUTPOL_NONINVERTED;
-  hcomp1.Init.Hysteresis = COMP_HYSTERESIS_MEDIUM;
+  hcomp1.Init.Hysteresis = COMP_HYSTERESIS_30MV;
   hcomp1.Init.BlankingSrce = COMP_BLANKINGSRC_NONE;
   hcomp1.Init.TriggerMode = COMP_TRIGGERMODE_NONE;
   if (HAL_COMP_Init(&hcomp1) != HAL_OK)
@@ -71,7 +71,7 @@ void MX_COMP7_Init(void)
   hcomp7.Init.OutputPol = COMP_OUTPUTPOL_NONINVERTED;
   hcomp7.Init.Hysteresis = COMP_HYSTERESIS_NONE;
   hcomp7.Init.BlankingSrce = COMP_BLANKINGSRC_NONE;
-  hcomp7.Init.TriggerMode = COMP_TRIGGERMODE_NONE;
+  hcomp7.Init.TriggerMode = COMP_TRIGGERMODE_IT_RISING;
   if (HAL_COMP_Init(&hcomp7) != HAL_OK)
   {
     Error_Handler();
@@ -128,6 +128,9 @@ void HAL_COMP_MspInit(COMP_HandleTypeDef* compHandle)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(PGA_IN_GPIO_Port, &GPIO_InitStruct);
 
+    /* COMP7 interrupt Init */
+    HAL_NVIC_SetPriority(COMP7_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(COMP7_IRQn);
   /* USER CODE BEGIN COMP7_MspInit 1 */
 
   /* USER CODE END COMP7_MspInit 1 */
@@ -164,6 +167,8 @@ void HAL_COMP_MspDeInit(COMP_HandleTypeDef* compHandle)
     */
     HAL_GPIO_DeInit(PGA_IN_GPIO_Port, PGA_IN_Pin);
 
+    /* COMP7 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(COMP7_IRQn);
   /* USER CODE BEGIN COMP7_MspDeInit 1 */
 
   /* USER CODE END COMP7_MspDeInit 1 */

@@ -39,6 +39,32 @@ static const char *g_manual_range_name = "200R";
 #define OHM_DIODE_PGA_GAIN 16U
 #define OHM_CONTINUITY_THRESHOLD_OHM 10.0
 #define OHM_OVER_RANGE_RATIO 1.10
+#define OHM_OL_DOT_MS 220U
+#define OHM_ADC_LOW_THRESHOLD 500U
+#define OHM_ADC_HIGH_THRESHOLD 65000U
+#define OHM_DIODE_MAX_FORWARD_V 2.90
+
+static uint8_t OhmMeter_IsRawNearRail(uint16_t raw)
+{
+    return ((raw <= OHM_ADC_LOW_THRESHOLD) || (raw >= OHM_ADC_HIGH_THRESHOLD)) ? 1U : 0U;
+}
+
+static void OhmMeter_ShowOverRangeAnimated(void)
+{
+    char disp_str[24];
+    uint8_t dot_count = (uint8_t)((HAL_GetTick() / OHM_OL_DOT_MS) % 4U);
+
+    if (dot_count == 0U) {
+        sprintf(disp_str, " OL");
+    } else if (dot_count == 1U) {
+        sprintf(disp_str, " OL.");
+    } else if (dot_count == 2U) {
+        sprintf(disp_str, " OL..");
+    } else {
+        sprintf(disp_str, " OL...");
+    }
+    OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
+}
 
 
 static double OhmMeter_CalcResistance(uint32_t adc_val, uint8_t range_idx)
@@ -67,14 +93,14 @@ static OhmMeter_Result OhmMeter_Read(void)
     OhmMeter_Result result = {0.0, 0U};
     uint16_t raw = adc_after_filter;
 
-    if ((raw == 0U) || (raw == 65535U)) {
+    if (OhmMeter_IsRawNearRail(raw) != 0U) {
         return result;
     }
 
     result.resistance_ohm = OhmMeter_CalcResistance(raw, g_ohm_range_idx);
-    // if (result.resistance_ohm < 0.0) {
-    //     result.resistance_ohm = 0.0;
-    // }
+    if (result.resistance_ohm < 0.0) {
+        result.resistance_ohm = 0.0;
+    }
     result.valid = 1U;
 
     return result;
@@ -95,7 +121,7 @@ static uint8_t OhmMeter_ReadDiodeVoltage(double *voltage_v)
 {
     uint16_t raw = adc_after_filter;
 
-    if ((raw == 0U) || (raw == 65535U)) {
+    if (OhmMeter_IsRawNearRail(raw) != 0U) {
         return 0U;
     }
 
@@ -147,6 +173,19 @@ static uint8_t OhmMeter_IsOverRange(const OhmMeter_Result *result)
     return (result->resistance_ohm > over_limit) ? 1U : 0U;
 }
 
+static uint8_t OhmMeter_IsDiodeOverRange(double voltage_v, uint8_t valid)
+{
+    if (valid == 0U) {
+        return 1U;
+    }
+
+    if (voltage_v > OHM_DIODE_MAX_FORWARD_V) {
+        return 1U;
+    }
+
+    return 0U;
+}
+
 static void OhmMeter_DisplayCommon(void)
 {
     OhmMeter_Result result = OhmMeter_Read();
@@ -160,8 +199,7 @@ static void OhmMeter_DisplayCommon(void)
     OLED_PrintString(0, 0, disp_str, &font16x16, OLED_COLOR_NORMAL);
 
     if (OhmMeter_IsOverRange(&result) != 0U) {
-        sprintf(disp_str, " 0L");
-        OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
+        OhmMeter_ShowOverRangeAnimated();
         return;
     }
 
@@ -270,14 +308,15 @@ void OhmMeter_200k_Ohm_Display(void)
 
 void OhmMeter_Diode_Display(void)
 {
-    double voltage_v;
+    double voltage_v = 0.0;
+    uint8_t valid;
     char disp_str[24];
 
     OLED_PrintString(0, 0, "DIODE 500uA", &font16x16, OLED_COLOR_NORMAL);
 
-    if (OhmMeter_ReadDiodeVoltage(&voltage_v) == 0U) {
-        sprintf(disp_str, " 0L");
-        OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
+    valid = OhmMeter_ReadDiodeVoltage(&voltage_v);
+    if (OhmMeter_IsDiodeOverRange(voltage_v, valid) != 0U) {
+        OhmMeter_ShowOverRangeAnimated();
         return;
     }
 
@@ -294,8 +333,7 @@ void OhmMeter_Continuity_Display(void)
 
     if (OhmMeter_IsOverRange(&result) != 0U) {
         HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
-        sprintf(disp_str, " 0L");
-        OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
+        OhmMeter_ShowOverRangeAnimated();
         return;
     }
 

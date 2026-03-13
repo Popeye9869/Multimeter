@@ -10,6 +10,8 @@
 
 #define VOLT_OL_HOLD_MS 1000U
 #define VOLT_OL_DOT_MS  220U
+#define VOLT_ADC_LOW_THRESHOLD   500U
+#define VOLT_ADC_HIGH_THRESHOLD  65000U
 
 #define VOLT_AC20V_PGA_GAIN       1U
 #define VOLT_AC2000MV_PGA_GAIN    8U
@@ -20,7 +22,7 @@ static uint8_t VoltMeter_IsOverRange(uint16_t adc_raw)
     static uint32_t extreme_start_tick = 0U;
     uint32_t now = HAL_GetTick();
 
-    if ((adc_raw == 0U) || (adc_raw == 65535U)) {
+    if ((adc_raw <= VOLT_ADC_LOW_THRESHOLD) || (adc_raw >= VOLT_ADC_HIGH_THRESHOLD)) {
         if (extreme_active == 0U) {
             extreme_active = 1U;
             extreme_start_tick = now;
@@ -47,13 +49,13 @@ static void VoltMeter_ShowOverRange(const char *title)
     OLED_PrintString(0, 0, disp_str, &font16x16, OLED_COLOR_NORMAL);
 
     if (dot_count == 0U) {
-        sprintf(disp_str, " 0L");
+        sprintf(disp_str, " OL");
     } else if (dot_count == 1U) {
-        sprintf(disp_str, " 0L.");
+        sprintf(disp_str, " OL.");
     } else if (dot_count == 2U) {
-        sprintf(disp_str, " 0L..");
+        sprintf(disp_str, " OL..");
     } else {
-        sprintf(disp_str, " 0L...");
+        sprintf(disp_str, " OL...");
     }
     OLED_PrintString(0, 20, disp_str, &font16x16, OLED_COLOR_NORMAL);
 }
@@ -129,7 +131,7 @@ void VoltMeter_DC20V_Display()
     char DispStr[20];
     sprintf(DispStr, "DC 20V");
     OLED_PrintString(0, 0, DispStr, &font16x16, OLED_COLOR_NORMAL);
-    sprintf(DispStr, " %.3f V", voltage);
+    sprintf(DispStr, " %.2f V", voltage);
     OLED_PrintString(0, 20, DispStr, &font16x16, OLED_COLOR_NORMAL);
 }
 
@@ -144,7 +146,7 @@ void VoltMeter_DC2000mV_Display()
     char DispStr[20];
     sprintf(DispStr, "DC 2000mV");
     OLED_PrintString(0, 0, DispStr, &font16x16, OLED_COLOR_NORMAL);
-    sprintf(DispStr, " %.3f mV", voltage);
+    sprintf(DispStr, " %4f mV", voltage);
     OLED_PrintString(0, 20, DispStr, &font16x16, OLED_COLOR_NORMAL);
 }
 
@@ -159,7 +161,7 @@ void VoltMeter_AC20V_Display()
     char DispStr[20];
     sprintf(DispStr, "AC 20V");
     OLED_PrintString(0, 0, DispStr, &font16x16, OLED_COLOR_NORMAL);
-    sprintf(DispStr, " %.3f V", voltage);
+    sprintf(DispStr, " %.2f V", voltage);
     OLED_PrintString(0, 20, DispStr, &font16x16, OLED_COLOR_NORMAL);
 }
 
@@ -174,7 +176,7 @@ void VoltMeter_AC2000mV_Display()
     char DispStr[20];
     sprintf(DispStr, "AC 2000mV");
     OLED_PrintString(0, 0, DispStr, &font16x16, OLED_COLOR_NORMAL);
-    sprintf(DispStr, " %.3f mV", voltage);
+    sprintf(DispStr, " %4f mV", voltage);
     OLED_PrintString(0, 20, DispStr, &font16x16, OLED_COLOR_NORMAL);
 }
 
